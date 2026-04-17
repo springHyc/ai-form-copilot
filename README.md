@@ -125,9 +125,11 @@ src/
 
 ```javascript
 // 只用精确的 .ant-form-item 类名选择器
-const all = document.querySelectorAll('.ant-form-item');
+const all = document.querySelectorAll(".ant-form-item");
 // 过滤掉嵌套在其他 form-item 内部的子项
-const topLevel = all.filter(item => !item.parentElement?.closest('.ant-form-item'));
+const topLevel = all.filter(
+  (item) => !item.parentElement?.closest(".ant-form-item"),
+);
 ```
 
 这一步解决了 Pro Components 中 `ProFormDependency` 在 Radio.Group 等容器内动态渲染子表单项的问题——嵌套的子项不会被当成独立字段，避免字段索引错乱。
@@ -136,20 +138,20 @@ const topLevel = all.filter(item => !item.parentElement?.closest('.ant-form-item
 
 对每个 form-item 容器，按优先级从高到低匹配 CSS 选择器：
 
-| 优先级 | 选择器 | 字段类型 | 说明 |
-|--------|--------|----------|------|
-| 1 | `.ant-cascader` | cascader | 特殊组件优先，避免被 select 误判 |
-| 2 | `.ant-tree-select` | treeselect | |
-| 3 | `.ant-transfer` | transfer | |
-| 4 | `.ant-switch` | switch | |
-| 5 | `.ant-select` | select | |
-| 6 | `.ant-radio-group` | radio | |
-| 7 | `.ant-checkbox-group` | checkbox | |
-| 8 | `.ant-picker-range` | daterange | 必须在 .ant-picker 之前 |
-| 9 | `.ant-picker` | date | |
-| 10 | `.ant-input-number` | number | |
-| 11 | `textarea.ant-input` | textarea | 在 input 之前，避免误判 |
-| 12 | `input.ant-input` | input | 最通用，优先级最低 |
+| 优先级 | 选择器                | 字段类型   | 说明                             |
+| ------ | --------------------- | ---------- | -------------------------------- |
+| 1      | `.ant-cascader`       | cascader   | 特殊组件优先，避免被 select 误判 |
+| 2      | `.ant-tree-select`    | treeselect |                                  |
+| 3      | `.ant-transfer`       | transfer   |                                  |
+| 4      | `.ant-switch`         | switch     |                                  |
+| 5      | `.ant-select`         | select     |                                  |
+| 6      | `.ant-radio-group`    | radio      |                                  |
+| 7      | `.ant-checkbox-group` | checkbox   |                                  |
+| 8      | `.ant-picker-range`   | daterange  | 必须在 .ant-picker 之前          |
+| 9      | `.ant-picker`         | date       |                                  |
+| 10     | `.ant-input-number`   | number     |                                  |
+| 11     | `textarea.ant-input`  | textarea   | 在 input 之前，避免误判          |
+| 12     | `input.ant-input`     | input      | 最通用，优先级最低               |
 
 **3. 提取字段元信息**
 
@@ -184,14 +186,14 @@ AI 只参与「生成测试数据」这一个环节，扫描和填充都是纯 D
 
 配 AI 与不配 AI 的区别：
 
-| | 不配 AI（Mock 规则） | 配了 AI（如 DeepSeek） |
-|---|---|---|
-| 生成速度 | 瞬间（本地计算） | 1~3 秒（网络请求） |
-| 常见字段（姓名/手机/邮箱） | 好，有专门规则 | 好 |
-| 业务专属字段（计划名称/隔离设置等） | 差，只能生成随机文本 | 好，能理解语义生成合理数据 |
-| 字段间关联性 | 无，各字段独立生成 | 有，AI 理解字段之间的业务关系 |
-| 是否需要联网 | 不需要 | 需要（调用 API） |
-| 费用 | 免费 | DeepSeek V3 约 ¥1/百万 token，极低 |
+|                                     | 不配 AI（Mock 规则） | 配了 AI（如 DeepSeek）             |
+| ----------------------------------- | -------------------- | ---------------------------------- |
+| 生成速度                            | 瞬间（本地计算）     | 1~3 秒（网络请求）                 |
+| 常见字段（姓名/手机/邮箱）          | 好，有专门规则       | 好                                 |
+| 业务专属字段（计划名称/隔离设置等） | 差，只能生成随机文本 | 好，能理解语义生成合理数据         |
+| 字段间关联性                        | 无，各字段独立生成   | 有，AI 理解字段之间的业务关系      |
+| 是否需要联网                        | 不需要               | 需要（调用 API）                   |
+| 费用                                | 免费                 | DeepSeek V3 约 ¥1/百万 token，极低 |
 
 示例对比——假设扫描到字段 `计划名称`、`执行设定`、`隔离设置`：
 
@@ -217,12 +219,15 @@ AI 的核心价值：当表单包含业务专属字段时，AI 能理解字段�
 
 ```javascript
 // 1. 获取 HTMLInputElement 原型上的原生 value setter
-const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+const setter = Object.getOwnPropertyDescriptor(
+  HTMLInputElement.prototype,
+  "value",
+).set;
 // 2. 通过原生 setter 设值（绕过 React 劫持的 setter）
-setter.call(inputElement, '张三');
+setter.call(inputElement, "张三");
 // 3. 手动派发事件，触发 React 的事件系统
-inputElement.dispatchEvent(new Event('input', { bubbles: true }));
-inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+inputElement.dispatchEvent(new Event("input", { bubbles: true }));
+inputElement.dispatchEvent(new Event("change", { bubbles: true }));
 ```
 
 **交互式组件（Select / DatePicker / Cascader 等）的填充原理：**
@@ -245,16 +250,17 @@ Transfer:   左侧列表随机勾选 1~3 项 → 点击右移按钮
 
 三个模块之间通过 `chrome.runtime.sendMessage` 和 `chrome.tabs.sendMessage` 通信，所有消息使用 TypeScript 联合类型严格约束：
 
-| 消息类型 | 方向 | 载荷 |
-|----------|------|------|
-| SCAN_FORM | Popup → Background | 无 |
-| SCAN_RESULT | Background → Popup | `{ fields: FormFieldInfo[] }` |
-| GENERATE_DATA | Popup → Background | `{ fields, aiConfig }` |
-| GENERATE_RESULT | Background → Popup | `{ data: FillData }` |
-| FILL_FORM | Popup → Background → Content | `{ data: FillData }` |
-| FILL_RESULT | Content → Background → Popup | `{ filledCount: number }` |
+| 消息类型        | 方向                         | 载荷                          |
+| --------------- | ---------------------------- | ----------------------------- |
+| SCAN_FORM       | Popup → Background           | 无                            |
+| SCAN_RESULT     | Background → Popup           | `{ fields: FormFieldInfo[] }` |
+| GENERATE_DATA   | Popup → Background           | `{ fields, aiConfig }`        |
+| GENERATE_RESULT | Background → Popup           | `{ data: FillData }`          |
+| FILL_FORM       | Popup → Background → Content | `{ data: FillData }`          |
+| FILL_RESULT     | Content → Background → Popup | `{ filledCount: number }`     |
 
 **可靠性保障**：
+
 - 扫描阶段使用 `chrome.scripting.executeScript` 直接注入执行，不依赖 Content Script 预加载
 - 填充阶段使用 fallback 机制：若 `chrome.tabs.sendMessage` 失败（Content Script 未加载），先注入 `content.js` 再重试
 
@@ -274,44 +280,44 @@ Transfer:   左侧列表随机勾选 1~3 项 → 点击右移按钮
 
 同时兼容 antd 原生组件和 `@ant-design/pro-components`（ProFormText、ProFormSelect、ProFormDateRangePicker 等）。
 
-| 组件 | 类型 | 扫描识别 | 自动填充 | 填充策略 |
-|------|------|---------|---------|---------|
-| Input 输入框 | input | ✅ | ✅ | 通过原生 `valueSetter` 设值 + 派发 `input`/`change` 事件，绕过 React 受控组件 |
-| Input.TextArea 文本域 | textarea | ✅ | ✅ | 同 Input |
-| Input.Password 密码框 | input | ✅ | ✅ | 通过 `.ant-input-affix-wrapper` 识别，填充策略同 Input |
-| InputNumber 数字输入框 | number | ✅ | ✅ | 操作 `.ant-input-number-input` 内部 input |
-| Select 选择器 | select | ✅ | ✅ | 模拟点击展开下拉框 → 从可用选项中随机选择一个 → 点击选中 |
-| Radio 单选框 | radio | ✅ | ✅ | 在 `.ant-radio-group` 中找到目标选项 → 点击对应 `input[type=radio]` |
-| Checkbox 多选框 | checkbox | ✅ | ✅ | 支持单个 Checkbox 和 Checkbox.Group，点击对应 `input[type=checkbox]` |
-| DatePicker 日期选择框 | date | ✅ | ✅ | 点击打开面板 → 输入日期文本 → 在面板中点击对应日期单元格确认 |
-| DateRangePicker 日期范围 | daterange | ✅ | ✅ | 识别 `.ant-picker-range` → 自动生成开始/结束两个日期 → 依次填充两个输入框 |
-| TimePicker 时间选择框 | date | ✅ | ✅ | 与 DatePicker 共用 `.ant-picker`，填充策略相同 |
-| Cascader 级联选择 | cascader | ✅ | ✅ | 模拟点击展开级联面板 → 逐级随机选择菜单项 → 自动选到叶子节点完成 |
-| TreeSelect 树选择 | treeselect | ✅ | ✅ | 模拟点击展开下拉 → 随机展开折叠节点 → 随机选择一个树节点 |
-| Switch 开关 | switch | ✅ | ✅ | 检测当前开关状态 → 根据生成值（随机 true/false）决定是否点击切换 |
-| Transfer 穿梭框 | transfer | ✅ | ✅ | 从左侧列表随机勾选 1~3 项 → 点击右移按钮完成穿梭 |
+| 组件                     | 类型       | 扫描识别 | 自动填充 | 填充策略                                                                      |
+| ------------------------ | ---------- | -------- | -------- | ----------------------------------------------------------------------------- |
+| Input 输入框             | input      | ✅       | ✅       | 通过原生 `valueSetter` 设值 + 派发 `input`/`change` 事件，绕过 React 受控组件 |
+| Input.TextArea 文本域    | textarea   | ✅       | ✅       | 同 Input                                                                      |
+| Input.Password 密码框    | input      | ✅       | ✅       | 通过 `.ant-input-affix-wrapper` 识别，填充策略同 Input                        |
+| InputNumber 数字输入框   | number     | ✅       | ✅       | 操作 `.ant-input-number-input` 内部 input                                     |
+| Select 选择器            | select     | ✅       | ✅       | 模拟点击展开下拉框 → 从可用选项中随机选择一个 → 点击选中                      |
+| Radio 单选框             | radio      | ✅       | ✅       | 在 `.ant-radio-group` 中找到目标选项 → 点击对应 `input[type=radio]`           |
+| Checkbox 多选框          | checkbox   | ✅       | ✅       | 支持单个 Checkbox 和 Checkbox.Group，点击对应 `input[type=checkbox]`          |
+| DatePicker 日期选择框    | date       | ✅       | ✅       | 点击打开面板 → 输入日期文本 → 在面板中点击对应日期单元格确认                  |
+| DateRangePicker 日期范围 | daterange  | ✅       | ✅       | 识别 `.ant-picker-range` → 自动生成开始/结束两个日期 → 依次填充两个输入框     |
+| TimePicker 时间选择框    | date       | ✅       | ✅       | 与 DatePicker 共用 `.ant-picker`，填充策略相同                                |
+| Cascader 级联选择        | cascader   | ✅       | ✅       | 模拟点击展开级联面板 → 逐级随机选择菜单项 → 自动选到叶子节点完成              |
+| TreeSelect 树选择        | treeselect | ✅       | ✅       | 模拟点击展开下拉 → 随机展开折叠节点 → 随机选择一个树节点                      |
+| Switch 开关              | switch     | ✅       | ✅       | 检测当前开关状态 → 根据生成值（随机 true/false）决定是否点击切换              |
+| Transfer 穿梭框          | transfer   | ✅       | ✅       | 从左侧列表随机勾选 1~3 项 → 点击右移按钮完成穿梭                              |
 
 ### 未支持（4 个）
 
-| 组件 | 原因 | 适配难度 | 计划 |
-|------|------|---------|------|
-| AutoComplete 自动完成 | DOM 结构与 Select 类似但有异步搜索，需要模拟输入触发搜索后选择 | 中 | 待支持 |
-| Slider 滑动输入条 | 需要模拟拖拽或点击轨道设置值 | 中 | 待评估 |
-| Rate 评分 | 需要点击对应星星图标 | 低 | 待支持 |
-| Mentions 提及 | 类似 Input 但有 @ 触发的弹出面板 | 中 | 待评估 |
+| 组件                  | 原因                                                           | 适配难度 | 计划   |
+| --------------------- | -------------------------------------------------------------- | -------- | ------ |
+| AutoComplete 自动完成 | DOM 结构与 Select 类似但有异步搜索，需要模拟输入触发搜索后选择 | 中       | 待支持 |
+| Slider 滑动输入条     | 需要模拟拖拽或点击轨道设置值                                   | 中       | 待评估 |
+| Rate 评分             | 需要点击对应星星图标                                           | 低       | 待支持 |
+| Mentions 提及         | 类似 Input 但有 @ 触发的弹出面板                               | 中       | 待评估 |
 
 ### 不适用（2 个）
 
-| 组件 | 说明 |
-|------|------|
-| Upload 上传 | 文件上传需要真实文件，不属于文本数据填充范畴 |
-| ColorPicker 颜色选择器 | Ant Design 5 新增组件，antd 4 中不存在 |
+| 组件                   | 说明                                         |
+| ---------------------- | -------------------------------------------- |
+| Upload 上传            | 文件上传需要真实文件，不属于文本数据填充范畴 |
+| ColorPicker 颜色选择器 | Ant Design 5 新增组件，antd 4 中不存在       |
 
 ### 第三方组件
 
-| 组件 | 扫描识别 | 自动填充 | 说明 |
-|------|---------|---------|------|
-| React Quill 富文本 | ✅ 识别为 custom | ❌ | 富文本编辑器交互复杂，暂不支持自动填充 |
+| 组件               | 扫描识别         | 自动填充 | 说明                                   |
+| ------------------ | ---------------- | -------- | -------------------------------------- |
+| React Quill 富文本 | ✅ 识别为 custom | ❌       | 富文本编辑器交互复杂，暂不支持自动填充 |
 
 ## License
 
