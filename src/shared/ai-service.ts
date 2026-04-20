@@ -7,6 +7,8 @@ function buildPrompt(fields: FormFieldInfo[]): string {
     const parts = [`字段ID: ${f.id}`, `标签: ${f.label}`, `类型: ${f.type}`];
     if (f.required) parts.push('必填: 是');
     if (f.placeholder) parts.push(`placeholder: ${f.placeholder}`);
+    if (f.ruleHints) parts.push(`校验/规则摘要(ruleHints，来自页面可见信息): ${f.ruleHints}`);
+    if (f.validationError) parts.push(`当前校验错误(上一轮填充后页面展示): ${f.validationError}`);
     if (f.extra) parts.push(`表单项说明(extra): ${f.extra}`);
     if (f.options?.length) parts.push(`可选值: ${f.options.join(', ')}`);
     if (f.constraints?.maxLength) parts.push(`最大长度: ${f.constraints.maxLength}`);
@@ -24,11 +26,12 @@ ${fieldDescriptions.join('\n')}
 1. 根据字段标签语义生成合理数据（如"姓名"→中文姓名，"手机号"→11位手机号，"邮箱"→邮箱格式）
 2. 对有可选值的字段（select/radio），必须从给定的可选值中选择一个
 3. 必填字段必须有值
-4. 遵守字段约束（最大长度、最小/最大值等）；若存在「表单项说明(extra)」，请结合该说明与标签理解业务含义（如范围、单位、小数位数）
+4. 遵守字段约束（最大长度、最小/最大值等）；若存在「校验/规则摘要(ruleHints)」或「表单项说明(extra)」，请结合其理解校验要求（如：仅数字英文、最大字符数、范围、单位、小数位数），生成**能通过校验**的值
 5. 日期字段使用 YYYY-MM-DD 格式
 6. 日期范围（类型为 daterange，如「开始-结束时间」）必须返回英文逗号分隔的两个日期：YYYY-MM-DD,YYYY-MM-DD（开始在前、结束在后，结束日晚于开始日）
 7. checkbox 类型如果有多个可选值，用逗号分隔；单个 checkbox 返回 "true"
 8. **类型为 number（InputNumber）时：填充值必须是合法数字**（整数或小数），不能是中文、字母或带单位的文字；若 extra 或约束中给出取值范围/小数要求，必须遵守
+9. 若存在「当前校验错误」，说明上一轮填充值未通过校验；你必须**针对该错误修正**生成新值（不要重复同样的错）
 
 ## 返回格式
 严格返回 JSON 对象，key 为字段ID，value 为填充值。只返回 JSON，不要其他内容。

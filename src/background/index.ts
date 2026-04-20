@@ -176,14 +176,28 @@ async function executeScanInPage(): Promise<{ fields: any[] }> {
 async function sendToContentWithFallback<T>(tabId: number, message: Message): Promise<T> {
   try {
     return await chrome.tabs.sendMessage(tabId, message);
-  } catch {
+  } catch (e) {
+    console.warn('[AI Form Copilot] Background -> Content 消息失败，尝试注入 content.js 后重试:', {
+      tabId,
+      messageType: (message as any)?.type,
+      error: e,
+    });
     // content script 未加载，注入后重试
     await chrome.scripting.executeScript({
       target: { tabId },
       files: ['content.js'],
     });
     await new Promise(r => setTimeout(r, 300));
-    return await chrome.tabs.sendMessage(tabId, message);
+    try {
+      return await chrome.tabs.sendMessage(tabId, message);
+    } catch (e2) {
+      console.error('[AI Form Copilot] Background -> Content 重试仍失败:', {
+        tabId,
+        messageType: (message as any)?.type,
+        error: e2,
+      });
+      throw e2;
+    }
   }
 }
 
@@ -193,7 +207,11 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
     try {
       switch (message.type) {
         case MessageType.SCAN_FORM: {
-          const result = await executeScanInPage();
+          const tab = await getActiveTab();
+          const result = await sendToContentWithFallback<{ type: MessageType.SCAN_RESULT; fields: any[] }>(
+            tab.id!,
+            { type: MessageType.SCAN_FORM },
+          );
           sendResponse({ type: MessageType.SCAN_RESULT, fields: result.fields });
           break;
         }
@@ -218,7 +236,10 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
           sendResponse({ type: MessageType.ERROR, error: '未知消息类型' });
       }
     } catch (error) {
-      console.error('[AI Form Copilot] Background error:', error);
+      console.error('[AI Form Copilot] Background error:', {
+        messageType: (message as any)?.type,
+        error,
+      });
       sendResponse({
         type: MessageType.ERROR,
         error: error instanceof Error ? error.message : String(error),

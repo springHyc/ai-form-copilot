@@ -63,36 +63,52 @@ async function fillSelect(container: HTMLElement, value: string) {
   const selectEl = container.querySelector<HTMLElement>('.ant-select');
   if (!selectEl || selectEl.classList.contains('ant-select-disabled')) return false;
 
-  const selector = selectEl.querySelector<HTMLElement>('.ant-select-selector');
-  if (selector) simulateClick(selector);
-  await sleep(350);
+  const openAndPick = async (): Promise<boolean> => {
+    const selector = selectEl.querySelector<HTMLElement>('.ant-select-selector');
+    if (selector) simulateClick(selector);
+    await sleep(200);
 
-  const dropdowns = document.querySelectorAll<HTMLElement>('.ant-select-dropdown');
-  for (const dropdown of dropdowns) {
-    if (dropdown.style.display === 'none' || dropdown.classList.contains('ant-select-dropdown-hidden')) continue;
-    if (dropdown.offsetHeight === 0) continue;
+    // 异步选项加载：最多等待 5 秒（25 * 200ms）
+    for (let i = 0; i < 25; i++) {
+      const dropdowns = document.querySelectorAll<HTMLElement>('.ant-select-dropdown');
+      for (const dropdown of dropdowns) {
+        if (dropdown.style.display === 'none' || dropdown.classList.contains('ant-select-dropdown-hidden')) continue;
+        if (dropdown.offsetHeight === 0) continue;
 
-    const options = dropdown.querySelectorAll<HTMLElement>('.ant-select-item-option');
-    for (const option of options) {
-      const text = option.textContent?.trim() ?? '';
-      if (text === value || text.includes(value) || value.includes(text)) {
-        simulateClick(option);
-        await sleep(100);
-        return true;
+        const options = dropdown.querySelectorAll<HTMLElement>('.ant-select-item-option');
+        if (options.length === 0) continue;
+
+        for (const option of options) {
+          const text = option.textContent?.trim() ?? '';
+          if (text === value || text.includes(value) || value.includes(text)) {
+            simulateClick(option);
+            await sleep(100);
+            return true;
+          }
+        }
+
+        // 没有精确匹配，从可用选项中随机选一个
+        const available = Array.from(
+          dropdown.querySelectorAll<HTMLElement>('.ant-select-item-option:not(.ant-select-item-option-disabled)'),
+        );
+        if (available.length > 0) {
+          const randomIdx = Math.floor(Math.random() * available.length);
+          simulateClick(available[randomIdx]);
+          await sleep(100);
+          return true;
+        }
       }
+      await sleep(200);
     }
+    return false;
+  };
 
-    // 没有精确匹配，从可用选项中随机选一个
-    const available = Array.from(
-      dropdown.querySelectorAll<HTMLElement>('.ant-select-item-option:not(.ant-select-item-option-disabled)'),
-    );
-    if (available.length > 0) {
-      const randomIdx = Math.floor(Math.random() * available.length);
-      simulateClick(available[randomIdx]);
-      await sleep(100);
-      return true;
-    }
-  }
+  if (await openAndPick()) return true;
+
+  // 第一次没有等到可选项时，关闭并重开再试一次
+  document.body.click();
+  await sleep(120);
+  if (await openAndPick()) return true;
 
   document.body.click();
   return false;
@@ -110,8 +126,8 @@ async function fillRadio(container: HTMLElement, value: string) {
     const textSpan = radio.querySelector(':scope > span:not(.ant-radio)');
     const text = (textSpan?.textContent?.trim() ?? radio.textContent?.trim() ?? '');
     if (text === value || text.includes(value) || value.includes(text)) {
-      const input = radio.querySelector<HTMLElement>('input[type="radio"]');
-      if (input) simulateClick(input);
+      // antd 常把 input 隐藏，直接点击 wrapper 更稳定
+      simulateClick(radio);
       return true;
     }
   }
@@ -123,11 +139,8 @@ async function fillRadio(container: HTMLElement, value: string) {
   const candidates = unchecked.length > 0 ? unchecked : radios;
   if (candidates.length > 0) {
     const idx = Math.floor(Math.random() * candidates.length);
-    const input = candidates[idx].querySelector<HTMLElement>('input[type="radio"]');
-    if (input) {
-      simulateClick(input);
-      return true;
-    }
+    simulateClick(candidates[idx]);
+    return true;
   }
 
   return false;
@@ -161,9 +174,16 @@ async function fillCheckbox(container: HTMLElement, value: string) {
 
 /** 解析 YYYY-MM-DD */
 function parseIsoDateParts(s: string): { y: number; m: number; d: number } | null {
-  const m = s.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const m = s.trim().match(/^(\d{4})-(\d{2})-(\d{2})(?:\s+\d{2}:\d{2}(?::\d{2})?)?$/);
   if (!m) return null;
   return { y: +m[1], m: +m[2], d: +m[3] };
+}
+
+/** 解析 HH:mm[:ss]（若不存在则返回 null） */
+function parseTimeParts(s: string): { h: number; m: number; sec: number } | null {
+  const m = s.trim().match(/\b(\d{2}):(\d{2})(?::(\d{2}))?\b/);
+  if (!m) return null;
+  return { h: +m[1], m: +m[2], sec: m[3] ? +m[3] : 0 };
 }
 
 /** 拆分日期范围字符串（兼容 AI 使用中文逗号或「至」） */
@@ -219,6 +239,41 @@ function clickDayInPanel(panel: HTMLElement, day: number): boolean {
     }
   }
   return false;
+}
+
+/** DateTimePicker 时间面板：按顺序点击时/分/秒（存在几列就处理几列） */
+async function tryPickTimeInDropdown(dropdown: HTMLElement, value: string): Promise<boolean> {
+  const time = parseTimeParts(value);
+  if (!time) return false;
+
+  const columns = dropdown.querySelectorAll<HTMLElement>('.ant-picker-time-panel-column');
+  if (columns.length === 0) return false;
+
+  const candidates = [String(time.h).padStart(2, '0'), String(time.m).padStart(2, '0'), String(time.sec).padStart(2, '0')];
+  const limit = Math.min(columns.length, candidates.length);
+
+  for (let i = 0; i < limit; i++) {
+    const col = columns[i];
+    const cell = Array.from(col.querySelectorAll<HTMLElement>('.ant-picker-time-panel-cell'))
+      .find((el) => el.textContent?.trim() === candidates[i]);
+    if (cell) {
+      simulateClick(cell);
+      await sleep(60);
+    }
+  }
+
+  return true;
+}
+
+/** DateTimePicker 常需要点击 OK 才会真正写回值 */
+async function confirmPickerIfNeeded(dropdown: HTMLElement): Promise<void> {
+  const ok = dropdown.querySelector<HTMLElement>(
+    '.ant-picker-ok button:not([disabled]), .ant-picker-ok .ant-btn-primary:not([disabled])',
+  );
+  if (ok) {
+    simulateClick(ok);
+    await sleep(100);
+  }
 }
 
 /** 在已打开的下拉中，若某面板正好是该年月则点击对应「日」 */
@@ -331,6 +386,10 @@ async function fillSingleDate(container: HTMLElement, value: string): Promise<bo
   if (dropdown && dateParts) {
     for (let step = 0; step < 36; step++) {
       if (tryClickDateInDropdown(dropdown, dateParts.y, dateParts.m, dateParts.d)) {
+        // DateTimePicker: 选完日期后补时间 + 确认
+        await sleep(80);
+        await tryPickTimeInDropdown(dropdown, value);
+        await confirmPickerIfNeeded(dropdown);
         document.body.click();
         await sleep(80);
         return true;
@@ -621,6 +680,20 @@ function collectTopLevelFormItems(): HTMLElement[] {
   return all.filter((item) => !item.parentElement?.closest('.ant-form-item'));
 }
 
+/** 同一 form-item 里可能存在多个可填字段（如 radio + ProFormDigit noStyle） */
+function collectFillTargets(container: HTMLElement): FieldType[] {
+  const targets: FieldType[] = [];
+  const primary = detectFieldType(container);
+  if (!primary) return targets;
+  targets.push(primary);
+
+  if (primary !== 'number' && container.querySelector('.ant-input-number')) {
+    targets.push('number');
+  }
+
+  return targets;
+}
+
 /**
  * 根据 AI 生成的数据，自动填充表单。
  * 以可见的顶层 .ant-form-item 顺序匹配 field_0, field_1...
@@ -632,26 +705,33 @@ export async function fillFormFields(_fields: FormFieldInfo[], data: FillData): 
 
   for (const container of allItems) {
     if (!isVisible(container)) continue;
-    const type = detectFieldType(container);
-    if (!type) continue;
+    const targets = collectFillTargets(container);
+    if (targets.length === 0) continue;
 
-    const fieldId = `field_${fieldIndex}`;
-    fieldIndex++;
+    for (const type of targets) {
+      const fieldId = `field_${fieldIndex}`;
+      fieldIndex++;
 
-    const value = data[fieldId];
-    if (value === undefined || value === null) continue;
+      const value = data[fieldId];
+      if (value === undefined || value === null) continue;
 
-    const handler = FILL_HANDLERS[type];
-    if (!handler) continue;
+      const handler = FILL_HANDLERS[type];
+      if (!handler) continue;
 
-    try {
-      const success = await handler(container, String(value));
-      if (success) filledCount++;
-      await sleep(150);
-    } catch (e) {
-      console.warn(`[AI Form Copilot] 填充字段 field_${fieldIndex - 1} 失败:`, e);
+      try {
+        const success = await handler(container, String(value));
+        if (success) filledCount++;
+        await sleep(150);
+      } catch (e) {
+        console.warn(`[AI Form Copilot] 填充字段 ${fieldId} 失败:`, e);
+      }
     }
   }
+
+  // 注：曾经尝试在这里做 focus → blur 触发校验渲染错误（闭环），但会干扰刚填好的
+  // select / date 等受控组件（portal 关闭尚未稳定），导致整体成功率下降。
+  // 现在改为纯被动读取：若页面本身已展示 .ant-form-item-explain-error，scanner
+  // 会把它写入 validationError；否则不主动触发校验。
 
   console.log(`[AI Form Copilot] 填充完成，成功 ${filledCount} 个字段`);
   return filledCount;

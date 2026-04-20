@@ -105,6 +105,28 @@ function randomRecentDate(): string {
   return now.toISOString().slice(0, 10);
 }
 
+/** 生成未来日期（用于有前置/禁用日期约束的执行时间类字段） */
+function randomFutureDate(): string {
+  const now = new Date();
+  now.setDate(now.getDate() + randInt(1, 30));
+  now.setHours(randInt(9, 20), randInt(0, 59), 0, 0);
+  return now.toISOString().slice(0, 10);
+}
+
+/** 生成未来日期时间（YYYY-MM-DD HH:mm:ss） */
+function randomFutureDateTime(): string {
+  const now = new Date();
+  now.setDate(now.getDate() + randInt(1, 30));
+  now.setHours(randInt(9, 20), randInt(0, 59), randInt(0, 59), 0);
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mi = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+}
+
 /** 生成随机公司名 */
 function randomCompany(): string {
   const prefixes = [
@@ -132,6 +154,50 @@ function randomCode(): string {
 function randomText(prefix: string): string {
   const ts = Date.now().toString(36).slice(-4);
   return `${prefix}_${ts}_${randInt(100, 999)}`;
+}
+
+/** 从文案中推断「最大字符数」（与 scanner 中逻辑保持一致） */
+function inferMaxLenFromHints(text: string): number | undefined {
+  const compact = text.replace(/\s+/g, '');
+  const patterns = [
+    /不超过(\d{1,4})个?字符/,
+    /至多(\d{1,4})个?字符/,
+    /最多(\d{1,4})个?字符/,
+    /不大于(\d{1,4})个?字符/,
+    /长度不超过(\d{1,4})/,
+    /最长(\d{1,4})个?字符/,
+    /≤\s*(\d{1,4})\s*个?字符/,
+  ];
+  for (const re of patterns) {
+    const m = compact.match(re);
+    if (m) return Number(m[1]);
+  }
+  return undefined;
+}
+
+/** 合并 ruleHints / extra / placeholder 为一段可匹配的提示文本 */
+function combineFieldHints(field: FormFieldInfo): string {
+  return [field.validationError, field.ruleHints, field.extra, field.placeholder].filter(Boolean).join(' ');
+}
+
+/** 是否要求「仅数字与英文字母」类输入 */
+function wantsAlphanumeric(hints: string): boolean {
+  const h = hints.replace(/\s+/g, '');
+  // 仅匹配明确表达「数字 + 英文」的文案，避免误伤普通校验错误（如「请输入XXX」「格式不正确」）
+  return /仅支持数字英文/.test(h)
+    || /仅支持英文数字/.test(h)
+    || /(仅|只)支持[0-9A-Za-z]/.test(h)
+    || /数字和?英文/.test(h)
+    || /英文和?数字/.test(h)
+    || /alphanumeric/i.test(hints);
+}
+
+/** 生成指定长度的字母数字串（大写+数字，避免中文校验不通过） */
+function randomAlphanumeric(len: number): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < len; i++) s += chars[randInt(0, chars.length - 1)];
+  return s;
 }
 
 /** 从 Form.Item extra 文案中解析数字范围、小数位数等提示（通用，不绑定具体业务） */
@@ -221,6 +287,8 @@ function randomDateRange(): string {
 
 /** 关键词到生成函数的映射 */
 const LABEL_RULES: [RegExp, () => string][] = [
+  [/执行时间|生效时间|触发时间|运行时间|定时/i, randomFutureDateTime],
+  [/开始时间|结束时间|截止时间|到期时间/i, randomFutureDate],
   [/姓名|联系人|用户名|客户名|处理人/i, randomChineseName],
   [/手机|电话|座机|联系方式|tel|phone/i, randomPhone],
   [/邮箱|email|邮件/i, randomEmail],
@@ -246,6 +314,18 @@ export function generateMockData(fields: FormFieldInfo[]): FillData {
   const data: FillData = {};
 
   for (const field of fields) {
+    const hints = combineFieldHints(field);
+
+    // 文本类：优先满足「仅数字英文 + 最大长度」等 DOM 推断规则
+    if (field.type === 'input' || field.type === 'textarea') {
+      if (wantsAlphanumeric(hints)) {
+        const maxLen = field.constraints?.maxLength ?? inferMaxLenFromHints(hints);
+        const len = maxLen !== undefined ? Math.max(1, Math.min(maxLen, 32)) : 8;
+        data[field.id] = randomAlphanumeric(len);
+        continue;
+      }
+    }
+
     // 有选项的字段，随机选一个
     if (field.options && field.options.length > 0) {
       data[field.id] = pickOne(field.options);
@@ -296,6 +376,12 @@ export function generateMockData(fields: FormFieldInfo[]): FillData {
         break;
       default:
         break;
+    }
+
+    const v = data[field.id];
+    const maxLen = field.constraints?.maxLength;
+    if (typeof v === 'string' && maxLen !== undefined && maxLen > 0 && v.length > maxLen) {
+      data[field.id] = v.slice(0, maxLen);
     }
   }
 

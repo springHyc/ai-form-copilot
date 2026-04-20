@@ -156,6 +156,8 @@ const App: React.FC = () => {
   const toast = useToast();
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+  /** 同一次「生成 / 一键填充」流程内，AI 限流提示只弹一次，避免多轮扫描刷屏 */
+  const aiRateLimitHintShownRef = useRef(false);
 
   // 加载保存的设置
   useEffect(() => {
@@ -202,33 +204,95 @@ const App: React.FC = () => {
     saveSettings({ ...cur, aiConfig: newConfig });
   }, [saveSettings]);
 
+  const notifyAiRateLimitedOnce = useCallback(() => {
+    if (aiRateLimitHintShownRef.current) return;
+    aiRateLimitHintShownRef.current = true;
+    toast.warning('AI 接口限流（429），已改用内置规则生成数据，或者更换AI 服务商');
+  }, [toast]);
+
   // 生成数据
   const generateData = useCallback(async (targetFields: FormFieldInfo[]): Promise<FillData> => {
-    if (!settingsRef.current.aiConfig.apiKey) {
+    const { aiConfig, useMockFallback } = settingsRef.current;
+
+    // 未配置 Key：只能走 Mock
+    if (!aiConfig.apiKey) {
       return generateMockData(targetFields);
     }
-    const response = await chrome.runtime.sendMessage({
-      type: MessageType.GENERATE_DATA,
-      fields: targetFields,
-      aiConfig: settingsRef.current.aiConfig,
-    });
-    if (response.type === MessageType.ERROR) throw new Error(response.error);
-    return response.data || {};
-  }, []);
+
+    // 用户显式选择「无 AI 时用内置规则」：不发起 AI 请求
+    if (useMockFallback) {
+      return generateMockData(targetFields);
+    }
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: MessageType.GENERATE_DATA,
+        fields: targetFields,
+        aiConfig,
+      });
+      if (!response) {
+        console.error('[AI Form Copilot] Popup -> Background GENERATE_DATA 无响应，降级为 Mock');
+        return generateMockData(targetFields);
+      }
+      if (response.type === MessageType.ERROR) {
+        const msg = String(response.error ?? '');
+        // AI 限流 / 服务端错误：自动降级为 Mock，避免一键填充直接中断
+        if (
+          /AI API 调用失败 \((429|500|502|503|504)\)/.test(msg)
+          || /rate_limit/i.test(msg)
+        ) {
+          console.warn('[AI Form Copilot] AI 生成失败，已降级为 Mock:', msg);
+          if (/AI API 调用失败 \(429\)/.test(msg) || /rate_limit/i.test(msg)) {
+            notifyAiRateLimitedOnce();
+          }
+          return generateMockData(targetFields);
+        }
+        console.error('[AI Form Copilot] Popup -> Background GENERATE_DATA 失败:', response.error);
+        throw new Error(response.error);
+      }
+      return response.data || {};
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/AI API 调用失败 \((429|500|502|503|504)\)/.test(msg) || /rate_limit/i.test(msg)) {
+        console.warn('[AI Form Copilot] AI 生成异常，已降级为 Mock:', e);
+        if (/AI API 调用失败 \(429\)/.test(msg) || /rate_limit/i.test(msg)) {
+          notifyAiRateLimitedOnce();
+        }
+        return generateMockData(targetFields);
+      }
+      console.error('[AI Form Copilot] Popup -> Background GENERATE_DATA 异常:', e);
+      throw e;
+    }
+  }, [notifyAiRateLimitedOnce]);
+
+  const hasFieldValue = (field: FormFieldInfo): boolean => {
+    if (field.currentValue === undefined || field.currentValue === null) return false;
+    return field.currentValue.trim().length > 0;
+  };
 
   // 扫描表单
   const handleScan = useCallback(async () => {
     setScanning(true);
     try {
       const response = await chrome.runtime.sendMessage({ type: MessageType.SCAN_FORM });
-      if (response.type === MessageType.ERROR) { toast.error(response.error); return; }
+      if (!response) {
+        console.error('[AI Form Copilot] Popup -> Background SCAN_FORM 无响应');
+        toast.error('扫描失败：无响应');
+        return;
+      }
+      if (response.type === MessageType.ERROR) {
+        console.error('[AI Form Copilot] Popup -> Background SCAN_FORM 失败:', response.error);
+        toast.error(response.error);
+        return;
+      }
       setFields(response.fields || []);
       if (response.fields?.length > 0) {
         toast.success(`发现 ${response.fields.length} 个表单字段`);
       } else {
         toast.warning('未发现 Ant Design 表单字段');
       }
-    } catch {
+    } catch (e) {
+      console.error('[AI Form Copilot] Popup 扫描异常:', e);
       toast.error('扫描失败，请确保页面已加载完成');
     } finally {
       setScanning(false);
@@ -238,12 +302,14 @@ const App: React.FC = () => {
   // 生成数据按钮
   const handleGenerate = useCallback(async () => {
     if (fields.length === 0) { toast.warning('请先扫描表单'); return; }
+    aiRateLimitHintShownRef.current = false;
     setGenerating(true);
     try {
       const data = await generateData(fields);
       setFillData(data);
       toast.success('数据生成完成');
     } catch (error) {
+      console.error('[AI Form Copilot] Popup 生成数据失败:', error);
       toast.error(error instanceof Error ? error.message : '数据生成失败');
     } finally {
       setGenerating(false);
@@ -256,9 +322,19 @@ const App: React.FC = () => {
     setFilling(true);
     try {
       const response = await chrome.runtime.sendMessage({ type: MessageType.FILL_FORM, data: fillData });
-      if (response.type === MessageType.ERROR) { toast.error(response.error); return; }
+      if (!response) {
+        console.error('[AI Form Copilot] Popup -> Background FILL_FORM 无响应');
+        toast.error('填充失败：无响应');
+        return;
+      }
+      if (response.type === MessageType.ERROR) {
+        console.error('[AI Form Copilot] Popup -> Background FILL_FORM 失败:', response.error);
+        toast.error(response.error);
+        return;
+      }
       toast.success(`成功填充 ${response.filledCount} 个字段`);
-    } catch {
+    } catch (e) {
+      console.error('[AI Form Copilot] Popup 填充异常:', e);
       toast.error('填充失败');
     } finally {
       setFilling(false);
@@ -267,42 +343,95 @@ const App: React.FC = () => {
 
   // 一键完成
   const handleOneClick = useCallback(async () => {
+    aiRateLimitHintShownRef.current = false;
     setScanning(true);
     try {
-      const scanResponse = await chrome.runtime.sendMessage({ type: MessageType.SCAN_FORM });
-      if (scanResponse.type === MessageType.ERROR || !scanResponse.fields?.length) {
-        toast.warning('未发现表单字段');
+      let totalFilled = 0;
+      let mergedData: FillData = {};
+      let previousFieldCount = -1;
+      const maxPasses = 3;
+
+      for (let pass = 1; pass <= maxPasses; pass++) {
+        const scanResponse = await chrome.runtime.sendMessage({ type: MessageType.SCAN_FORM });
+        if (!scanResponse) {
+          console.error(`[AI Form Copilot] Popup 一键填充 pass=${pass} SCAN_FORM 无响应`);
+          toast.error('扫描失败：无响应');
+          setScanning(false);
+          return;
+        }
+        if (scanResponse.type === MessageType.ERROR) {
+          console.error(`[AI Form Copilot] Popup 一键填充 pass=${pass} SCAN_FORM 失败:`, scanResponse.error);
+          toast.error(scanResponse.error);
+          setScanning(false);
+          return;
+        }
+
+        const scannedFields = (scanResponse.fields || []) as FormFieldInfo[];
+        setFields(scannedFields);
+        if (scannedFields.length === 0) {
+          if (pass === 1) toast.warning('未发现表单字段');
+          break;
+        }
+
+        const needFillFields = scannedFields.filter((field) => !hasFieldValue(field));
+        if (needFillFields.length === 0) break;
+
         setScanning(false);
-        return;
-      }
-      setFields(scanResponse.fields);
-      setScanning(false);
-
-      setGenerating(true);
-      let generatedData: FillData;
-      try {
-        generatedData = await generateData(scanResponse.fields);
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : '数据生成失败');
+        setGenerating(true);
+        let passData: FillData;
+        try {
+          passData = await generateData(needFillFields);
+        } catch (error) {
+          console.error(`[AI Form Copilot] Popup 一键填充 pass=${pass} 生成数据失败:`, error);
+          toast.error(error instanceof Error ? error.message : '数据生成失败');
+          setGenerating(false);
+          return;
+        }
         setGenerating(false);
-        return;
-      }
-      setFillData(generatedData);
-      setGenerating(false);
 
-      setFilling(true);
-      const fillResponse = await chrome.runtime.sendMessage({
-        type: MessageType.FILL_FORM,
-        data: generatedData,
-      });
-      setFilling(false);
+        mergedData = { ...mergedData, ...passData };
+        setFillData(mergedData);
 
-      if (fillResponse.type === MessageType.ERROR) {
-        toast.error(fillResponse.error);
-        return;
+        setFilling(true);
+        const fillResponse = await chrome.runtime.sendMessage({
+          type: MessageType.FILL_FORM,
+          data: passData,
+        });
+        setFilling(false);
+
+        if (!fillResponse) {
+          console.error(`[AI Form Copilot] Popup 一键填充 pass=${pass} FILL_FORM 无响应`);
+          toast.error('填充失败：无响应');
+          return;
+        }
+        if (fillResponse.type === MessageType.ERROR) {
+          console.error(`[AI Form Copilot] Popup 一键填充 pass=${pass} FILL_FORM 失败:`, fillResponse.error);
+          toast.error(fillResponse.error);
+          return;
+        }
+
+        totalFilled += fillResponse.filledCount || 0;
+
+        // 如果字段数量没有增加，且本轮没有新填充，说明已趋于稳定，提前结束
+        if (
+          previousFieldCount === scannedFields.length
+          && (fillResponse.filledCount || 0) === 0
+        ) {
+          break;
+        }
+        previousFieldCount = scannedFields.length;
+
+        // 给 ProFormDependency / 异步请求一点渲染时间
+        if (pass < maxPasses) {
+          await new Promise((resolve) => setTimeout(resolve, 450));
+          setScanning(true);
+        }
       }
-      toast.success(`完成！成功填充 ${fillResponse.filledCount} 个字段`);
-    } catch {
+
+      setScanning(false);
+      toast.success(`完成！累计成功填充 ${totalFilled} 个字段`);
+    } catch (e) {
+      console.error('[AI Form Copilot] Popup 一键填充异常:', e);
       toast.error('操作失败，请重试');
       setScanning(false);
       setGenerating(false);
