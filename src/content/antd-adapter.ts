@@ -29,6 +29,33 @@ function simulateClick(element: HTMLElement) {
   element.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 }
 
+/**
+ * 尽量贴近真实指针：rc-select / React 常监听 mousedown；末尾再调原生 click 提高受控 Select 的命中率。
+ * 不传 view：jsdom / 多 frame 下 globalThis.window 与节点 ownerDocument.defaultView 不一致会抛错。
+ */
+function simulatePointerClick(element: HTMLElement) {
+  const evInit: MouseEventInit = { bubbles: true, cancelable: true };
+  const ptrInit: PointerEventInit = {
+    ...evInit,
+    pointerId: 1,
+    pointerType: 'mouse',
+  };
+  try {
+    element.dispatchEvent(new PointerEvent('pointerdown', ptrInit));
+  } catch {
+    /* jsdom 等环境可能无 PointerEvent */
+  }
+  element.dispatchEvent(new MouseEvent('mousedown', evInit));
+  try {
+    element.dispatchEvent(new PointerEvent('pointerup', ptrInit));
+  } catch {
+    /* ignore */
+  }
+  element.dispatchEvent(new MouseEvent('mouseup', evInit));
+  element.dispatchEvent(new MouseEvent('click', evInit));
+  if (typeof element.click === 'function') element.click();
+}
+
 async function fillInput(container: HTMLElement, value: string) {
   const input = container.querySelector<HTMLInputElement | HTMLTextAreaElement>(
     'input.ant-input, textarea.ant-input, .ant-input-affix-wrapper input',
@@ -59,42 +86,102 @@ async function fillNumber(container: HTMLElement, value: string) {
   return true;
 }
 
+/** antd 5+：.ant-select-selector；antd 4：.ant-select-selection */
+function getSelectTriggerEl(selectRoot: HTMLElement): HTMLElement | null {
+  return (
+    selectRoot.querySelector<HTMLElement>('.ant-select-selector')
+    ?? selectRoot.querySelector<HTMLElement>('.ant-select-selection')
+  );
+}
+
+/** antd 5+：.ant-select-item-option；antd 4：.ant-select-dropdown-menu-item；兜底 [role="option"] */
+function querySelectOptionNodes(dropdown: HTMLElement): HTMLElement[] {
+  const v5 = dropdown.querySelectorAll<HTMLElement>('.ant-select-item-option');
+  if (v5.length > 0) return Array.from(v5);
+  const v4 = Array.from(
+    dropdown.querySelectorAll<HTMLElement>(
+      '.ant-select-dropdown-menu-item:not(.ant-select-dropdown-menu-item-disabled)',
+    ),
+  ).filter((el) => !el.classList.contains('ant-select-dropdown-menu-item-divider'));
+  if (v4.length > 0) return v4;
+  const byRole = Array.from(dropdown.querySelectorAll<HTMLElement>('[role="option"]')).filter(
+    (el) => el.getAttribute('aria-disabled') !== 'true' && !el.closest('.ant-select-item-option-disabled'),
+  );
+  return byRole;
+}
+
+function querySelectableSelectOptions(dropdown: HTMLElement): HTMLElement[] {
+  const v5 = dropdown.querySelectorAll<HTMLElement>(
+    '.ant-select-item-option:not(.ant-select-item-option-disabled)',
+  );
+  if (v5.length > 0) return Array.from(v5);
+  const v4 = Array.from(
+    dropdown.querySelectorAll<HTMLElement>(
+      '.ant-select-dropdown-menu-item:not(.ant-select-dropdown-menu-item-disabled):not(.ant-select-dropdown-menu-item-divider)',
+    ),
+  );
+  if (v4.length > 0) return v4;
+  return Array.from(dropdown.querySelectorAll<HTMLElement>('[role="option"]')).filter(
+    (el) => el.getAttribute('aria-disabled') !== 'true',
+  );
+}
+
+/** 下拉层是否处于关闭/隐藏态（不要仅靠 offsetHeight，虚拟列表或 transform 下可能为 0） */
+function isSelectDropdownHiddenLayer(el: HTMLElement): boolean {
+  if (el.style.display === 'none') return true;
+  if (el.classList.contains('ant-select-dropdown-hidden')) return true;
+  const cs = getComputedStyle(el);
+  if (cs.display === 'none' || cs.visibility === 'hidden') return true;
+  // jsdom 下 opacity 可能为 ''，Number('')===0 会误判为隐藏
+  if (cs.opacity !== '' && !Number.isNaN(parseFloat(cs.opacity)) && parseFloat(cs.opacity) === 0) return true;
+  return false;
+}
+
+function collectSelectDropdownRoots(): HTMLElement[] {
+  const roots = document.querySelectorAll<HTMLElement>('.ant-select-dropdown, .rc-select-dropdown');
+  // 后挂载的往往是当前打开的，倒序优先
+  return Array.from(roots).reverse();
+}
+
 async function fillSelect(container: HTMLElement, value: string) {
   const selectEl = container.querySelector<HTMLElement>('.ant-select');
   if (!selectEl || selectEl.classList.contains('ant-select-disabled')) return false;
 
   const openAndPick = async (): Promise<boolean> => {
-    const selector = selectEl.querySelector<HTMLElement>('.ant-select-selector');
-    if (selector) simulateClick(selector);
-    await sleep(200);
+    const trigger = getSelectTriggerEl(selectEl) ?? selectEl;
+    trigger.focus();
+    simulatePointerClick(trigger);
+    await sleep(280);
 
-    // 异步选项加载：最多等待 5 秒（25 * 200ms）
+    // 异步选项加载：最多等待约 5 秒
     for (let i = 0; i < 25; i++) {
-      const dropdowns = document.querySelectorAll<HTMLElement>('.ant-select-dropdown');
+      const dropdowns = collectSelectDropdownRoots();
       for (const dropdown of dropdowns) {
-        if (dropdown.style.display === 'none' || dropdown.classList.contains('ant-select-dropdown-hidden')) continue;
-        if (dropdown.offsetHeight === 0) continue;
+        if (isSelectDropdownHiddenLayer(dropdown)) continue;
 
-        const options = dropdown.querySelectorAll<HTMLElement>('.ant-select-item-option');
-        if (options.length === 0) continue;
+        const optionNodes = querySelectOptionNodes(dropdown);
+        if (optionNodes.length === 0) continue;
 
-        for (const option of options) {
+        for (const option of optionNodes) {
           const text = option.textContent?.trim() ?? '';
           if (text === value || text.includes(value) || value.includes(text)) {
-            simulateClick(option);
-            await sleep(100);
+            const target =
+              option.querySelector<HTMLElement>('.ant-select-item-option-content') ?? option;
+            simulatePointerClick(target);
+            await sleep(120);
             return true;
           }
         }
 
         // 没有精确匹配，从可用选项中随机选一个
-        const available = Array.from(
-          dropdown.querySelectorAll<HTMLElement>('.ant-select-item-option:not(.ant-select-item-option-disabled)'),
-        );
+        const available = querySelectableSelectOptions(dropdown);
         if (available.length > 0) {
           const randomIdx = Math.floor(Math.random() * available.length);
-          simulateClick(available[randomIdx]);
-          await sleep(100);
+          const picked = available[randomIdx];
+          const target =
+            picked.querySelector<HTMLElement>('.ant-select-item-option-content') ?? picked;
+          simulatePointerClick(target);
+          await sleep(120);
           return true;
         }
       }
@@ -437,8 +524,9 @@ async function fillCascader(container: HTMLElement, _value: string) {
   const cascaderEl = container.querySelector<HTMLElement>('.ant-cascader, .ant-select');
   if (!cascaderEl || cascaderEl.classList.contains('ant-select-disabled')) return false;
 
-  const selector = cascaderEl.querySelector<HTMLElement>('.ant-select-selector');
-  if (selector) simulateClick(selector);
+  const trigger = getSelectTriggerEl(cascaderEl) ?? cascaderEl;
+  trigger.focus();
+  simulatePointerClick(trigger);
   await sleep(400);
 
   // Cascader 的下拉面板包含多列菜单
@@ -521,8 +609,9 @@ async function fillTreeSelect(container: HTMLElement, _value: string) {
   const treeSelectEl = container.querySelector<HTMLElement>('.ant-tree-select, .ant-select');
   if (!treeSelectEl || treeSelectEl.classList.contains('ant-select-disabled')) return false;
 
-  const selector = treeSelectEl.querySelector<HTMLElement>('.ant-select-selector');
-  if (selector) simulateClick(selector);
+  const trigger = getSelectTriggerEl(treeSelectEl) ?? treeSelectEl;
+  trigger.focus();
+  simulatePointerClick(trigger);
   await sleep(400);
 
   const dropdowns = document.querySelectorAll<HTMLElement>(

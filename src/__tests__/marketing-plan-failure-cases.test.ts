@@ -1,13 +1,20 @@
 /**
  * 回归单测：营销计划第一步等页面曾出现的失败案例。
  * 对应业务参考 jarvis …/createMarketPlan/FirstStep.tsx（DOM 为 antd 类名近似还原）。
+ * 失败案例 7：scenesf 资方详情等 antd 4.x Select（.ant-select-selection / .ant-select-dropdown-menu-item）。
+ * 截图回归：抽屉「新增处理人」— 对齐 new-apple …/repayment-handler/drawer.tsx：资金方 / 处理人姓名 为异步
+ *   Select；处理人手机号为 disabled，由姓名 onChange 联动带出，非手填。
  *
  * 与一键填充筛选逻辑保持一致：src/popup/App.tsx — hasFieldValue / hasValidationError
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { scanFormFields } from "@/content/scanner";
 import { generateMockData } from "@/utils/mock-rules";
-import { parseIsoDateParts, parseTimeParts } from "@/content/antd-adapter";
+import {
+  fillFormFields,
+  parseIsoDateParts,
+  parseTimeParts,
+} from "@/content/antd-adapter";
 import type { FormFieldInfo } from "@/shared/types";
 
 /** 与 Popup 一键填充「本轮是否需要生成/填充」一致 */
@@ -85,6 +92,17 @@ describe("失败案例 1：选择名单包（异步 Select）", () => {
     expect(fields[0].type).toBe("select");
     expect(fields[0].label).toContain("选择名单包");
     expect(fields[0].options).toBeUndefined();
+  });
+
+  it("generateMockData：无 options 的 select（如异步「资金方」）须生成 random，否则一键填充会跳过", () => {
+    const field: FormFieldInfo = {
+      id: "field_0",
+      label: "资金方",
+      type: "select",
+      required: true,
+    };
+    const data = generateMockData([field]);
+    expect(data.field_0).toBe("random");
   });
 });
 
@@ -274,6 +292,193 @@ describe("失败案例 6：渠道代码（企业金融）（input，须字母数
     `);
     const fields = scanFormFields();
     expect(fields[0].validationError).toBe("请输入字母或数字");
+  });
+});
+
+describe("失败案例 7：产品类型（antd 4 Select，须能点开并点选 menu-item）", () => {
+  it("fillSelect：antd 4 使用 .ant-select-selection + .ant-select-dropdown-menu-item", async () => {
+    mountVisibleForm(`
+      <div class="ant-form-item">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label>产品类型</label></div>
+          <div class="ant-form-item-control">
+            <div class="ant-select ant-select-single ant-select-enabled">
+              <div class="ant-select-selection ant-select-selection--single" tabindex="0">
+                <div class="ant-select-selection__rendered">
+                  <div class="ant-select-selection-placeholder">请选择</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+    const dd = document.createElement("div");
+    dd.className = "ant-select-dropdown";
+    dd.innerHTML = `
+      <div>
+        <ul role="listbox" class="ant-select-dropdown-menu">
+          <li role="option" class="ant-select-dropdown-menu-item">消费贷</li>
+          <li role="option" class="ant-select-dropdown-menu-item">经营贷</li>
+        </ul>
+      </div>
+    `;
+    document.body.appendChild(dd);
+
+    const filled = await fillFormFields([], { field_0: "random" });
+    expect(filled).toBe(1);
+  });
+
+  it("fillSelect：antd 5+ 使用 .ant-select-selector + .ant-select-item-option（点 option-content）", async () => {
+    mountVisibleForm(`
+      <div class="ant-form-item">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label>产品类型</label></div>
+          <div class="ant-form-item-control">
+            <div class="ant-select ant-select-single ant-select-outlined ant-select-enabled">
+              <div class="ant-select-selector" tabindex="0">
+                <div class="ant-select-selection-wrap">
+                  <div class="ant-select-selection-placeholder">请选择</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+    const dd = document.createElement("div");
+    dd.className = "ant-select-dropdown";
+    dd.innerHTML = `
+      <div class="rc-virtual-list">
+        <div class="ant-select-item ant-select-item-option" title="类型甲">
+          <div class="ant-select-item-option-content">类型甲</div>
+        </div>
+        <div class="ant-select-item ant-select-item-option" title="类型乙">
+          <div class="ant-select-item-option-content">类型乙</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(dd);
+
+    const filled = await fillFormFields([], { field_0: "nomatch" });
+    expect(filled).toBe(1);
+  });
+
+  it("扫描 antd 4 已选 Select 时 currentValue 取自 .ant-select-selection-selected-value", () => {
+    mountVisibleForm(`
+      <div class="ant-form-item">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label>产品类型</label></div>
+          <div class="ant-form-item-control">
+            <div class="ant-select ant-select-single ant-select-enabled">
+              <div class="ant-select-selection ant-select-selection--single">
+                <div class="ant-select-selection__rendered">
+                  <div class="ant-select-selection-selected-value" title="经营贷">经营贷</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+    const fields = scanFormFields();
+    expect(fields[0].type).toBe("select");
+    expect(fields[0].label).toContain("产品类型");
+    expect(fields[0].currentValue).toBe("经营贷");
+    expect(fieldNeedsFillInOneClickPass(fields[0])).toBe(false);
+  });
+});
+
+/**
+ * 截图：AI Form Copilot「新增处理人」— 源码见 new-apple/src/pages/sys/business-config/repayment-handler/drawer.tsx。
+ * 资金方无 options 时 Mock 须 random；手机号表单项为 Input disabled，与业务一致，填充阶段应跳过。
+ */
+describe("截图回归：新增处理人（资金方 + 处理人姓名 + 处理人手机号）", () => {
+  const addHandlerFormHtml = `
+    <div class="ant-form-item">
+      <div class="ant-row">
+        <div class="ant-form-item-label"><label class="ant-form-item-required">资金方</label></div>
+        <div class="ant-form-item-control">
+          <div class="ant-select ant-select-single ant-select-enabled">
+            <div class="ant-select-selection ant-select-selection--single" tabindex="0">
+              <div class="ant-select-selection__rendered">
+                <div class="ant-select-selection-placeholder">请选择</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ant-form-item">
+      <div class="ant-row">
+        <div class="ant-form-item-label"><label class="ant-form-item-required">处理人姓名</label></div>
+        <div class="ant-form-item-control">
+          <div class="ant-select ant-select-single ant-select-enabled">
+            <div class="ant-select-selection ant-select-selection--single" tabindex="0">
+              <div class="ant-select-selection__rendered">
+                <div class="ant-select-selection-placeholder">请选择</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ant-form-item">
+      <div class="ant-row">
+        <div class="ant-form-item-label"><label>处理人手机号</label></div>
+        <div class="ant-form-item-control">
+          <input class="ant-input" type="text" placeholder="选择处理人姓名后自动带出" disabled value="" />
+        </div>
+      </div>
+    </div>
+  `;
+
+  it("扫描顺序与类型：两路异步 Select + 联动号码（Input disabled，与 drawer 一致）", () => {
+    mountVisibleForm(addHandlerFormHtml);
+    const fields = scanFormFields();
+    expect(fields).toHaveLength(3);
+    expect(fields.map((f) => [f.label, f.type] as const)).toEqual([
+      ["资金方", "select"],
+      ["处理人姓名", "select"],
+      ["处理人手机号", "input"],
+    ]);
+    expect(fields[0].options).toBeUndefined();
+    expect(fields[1].options).toBeUndefined();
+    expect([fields[0].required, fields[1].required, fields[2].required]).toEqual([
+      true,
+      true,
+      false,
+    ]);
+    expect(fields[2].placeholder).toContain("自动带出");
+    const mobileInput = document.querySelector<HTMLInputElement>(
+      ".ant-form-item:last-of-type .ant-input",
+    );
+    expect(mobileInput?.disabled).toBe(true);
+  });
+
+  it("generateMockData：field_0 random、field_1 中文名；field_2 仍按标签生成手机号（联动字段不依赖该值写入 DOM）", () => {
+    mountVisibleForm(addHandlerFormHtml);
+    const fields = scanFormFields();
+    const data = generateMockData(fields);
+    expect(data.field_0).toBe("random");
+    expect(String(data.field_1)).toMatch(/[\u4e00-\u9fff]/);
+    expect(String(data.field_2)).toMatch(/^1[3-9]\d{9}$/);
+    expect(Object.keys(data).sort()).toEqual(["field_0", "field_1", "field_2"]);
+  });
+
+  it("处理人手机号 disabled：fillInput 跳过，不计入 filledCount（真实联动由 React onChange 带出）", async () => {
+    mountVisibleForm(`
+      <div class="ant-form-item">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label>处理人手机号</label></div>
+          <div class="ant-form-item-control">
+            <input class="ant-input" disabled placeholder="选择处理人姓名后自动带出" value="" />
+          </div>
+        </div>
+      </div>
+    `);
+    const filled = await fillFormFields([], { field_0: "13800138000" });
+    expect(filled).toBe(0);
   });
 });
 

@@ -186,7 +186,10 @@ function extractOptions(container: HTMLElement, type: FieldType): string[] {
 
   if (type === 'select') {
     const selectEl = container.querySelector('.ant-select');
-    const selectedText = selectEl?.querySelector('.ant-select-selection-item')?.textContent?.trim();
+    // antd 5+：.ant-select-selection-item；antd 4：.ant-select-selection-selected-value
+    const selectedText =
+      selectEl?.querySelector('.ant-select-selection-item')?.textContent?.trim()
+      ?? selectEl?.querySelector('.ant-select-selection-selected-value')?.textContent?.trim();
     return selectedText ? [selectedText] : [];
   }
 
@@ -309,15 +312,23 @@ export function scanFormFields(): FormFieldInfo[] {
           : element.querySelector('input') as HTMLInputElement;
         currentValue = inputEl?.value || undefined;
       } else if (type === 'select') {
-        currentValue = container.querySelector('.ant-select-selection-item')?.textContent?.trim() || undefined;
+        currentValue =
+          container.querySelector('.ant-select-selection-item')?.textContent?.trim()
+          || container.querySelector('.ant-select-selection-selected-value')?.textContent?.trim()
+          || undefined;
       } else if (type === 'date' || type === 'daterange') {
         const dateInputs = element.querySelectorAll<HTMLInputElement>('input');
         currentValue = Array.from(dateInputs).map((inp) => inp.value).filter(Boolean).join(',') || undefined;
       } else if (type === 'cascader') {
         currentValue = container.querySelector('.ant-cascader-picker-label')?.textContent?.trim()
-          || container.querySelector('.ant-select-selection-item')?.textContent?.trim() || undefined;
+          || container.querySelector('.ant-select-selection-item')?.textContent?.trim()
+          || container.querySelector('.ant-select-selection-selected-value')?.textContent?.trim()
+          || undefined;
       } else if (type === 'treeselect') {
-        currentValue = container.querySelector('.ant-select-selection-item')?.textContent?.trim() || undefined;
+        currentValue =
+          container.querySelector('.ant-select-selection-item')?.textContent?.trim()
+          || container.querySelector('.ant-select-selection-selected-value')?.textContent?.trim()
+          || undefined;
       } else if (type === 'switch') {
         const sw = container.querySelector('.ant-switch');
         currentValue = sw?.classList.contains('ant-switch-checked') ? 'true' : 'false';

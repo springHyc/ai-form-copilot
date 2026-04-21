@@ -291,8 +291,9 @@ function randomDateRange(): string {
 const LABEL_RULES: [RegExp, () => string][] = [
   [/执行时间|生效时间|触发时间|运行时间|定时/i, randomFutureDateTime],
   [/开始时间|结束时间|截止时间|到期时间/i, randomFutureDate],
-  [/姓名|联系人|用户名|客户名|处理人/i, randomChineseName],
+  // 须在「姓名|…|处理人」之前：否则「处理人手机号」会先被 处理人 命中成中文名
   [/手机|电话|座机|联系方式|tel|phone/i, randomPhone],
+  [/姓名|联系人|用户名|客户名|处理人/i, randomChineseName],
   [/邮箱|email|邮件/i, randomEmail],
   [/身份证|证件号/i, randomIdCard],
   [/地址|住址|详细地址/i, randomAddress],
@@ -371,10 +372,11 @@ export function generateMockData(fields: FormFieldInfo[]): FillData {
       case 'switch':
         data[field.id] = randInt(0, 1) ? 'true' : 'false';
         break;
+      case 'select':
       case 'cascader':
       case 'treeselect':
       case 'transfer':
-        // 这些组件的填充不依赖生成的值，而是在页面上随机选择
+        // 异步/未展开的下拉无 options；填充时在页面上按文案匹配或随机点选（见 fillSelect）
         data[field.id] = 'random';
         break;
       default:
