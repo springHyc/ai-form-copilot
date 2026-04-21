@@ -183,12 +183,14 @@ function combineFieldHints(field: FormFieldInfo): string {
 /** 是否要求「仅数字与英文字母」类输入 */
 function wantsAlphanumeric(hints: string): boolean {
   const h = hints.replace(/\s+/g, '');
-  // 仅匹配明确表达「数字 + 英文」的文案，避免误伤普通校验错误（如「请输入XXX」「格式不正确」）
+  // 含 antd 常见 rules.message：「请输入字母或数字」等；避免仅凭「格式不正确」误判
   return /仅支持数字英文/.test(h)
     || /仅支持英文数字/.test(h)
     || /(仅|只)支持[0-9A-Za-z]/.test(h)
     || /数字和?英文/.test(h)
     || /英文和?数字/.test(h)
+    || /字母或数字|数字或字母|字母和数字|字母与数字/.test(h)
+    || /只能为?字母数字|只能输入字母数字|请输入字母数字/.test(h)
     || /alphanumeric/i.test(hints);
 }
 
@@ -285,7 +287,7 @@ function randomDateRange(): string {
   return `${start.toISOString().slice(0, 10)},${end.toISOString().slice(0, 10)}`;
 }
 
-/** 关键词到生成函数的映射 */
+/** 关键词到生成函数的映射（顺序敏感：更具体的规则须排在宽泛规则之前） */
 const LABEL_RULES: [RegExp, () => string][] = [
   [/执行时间|生效时间|触发时间|运行时间|定时/i, randomFutureDateTime],
   [/开始时间|结束时间|截止时间|到期时间/i, randomFutureDate],
@@ -294,13 +296,14 @@ const LABEL_RULES: [RegExp, () => string][] = [
   [/邮箱|email|邮件/i, randomEmail],
   [/身份证|证件号/i, randomIdCard],
   [/地址|住址|详细地址/i, randomAddress],
+  // 「渠道代码（企业金融）」等：label 括号内含「企业」若排在「编码/代码」前会误命中公司名，故编码类须在前
+  [/编号|编码|代码|码值|条码|二维码|邀请码|兑换码|验证码|取件码|渠道码|code|id|号/i, randomCode],
   [/公司|企业|单位|机构/i, randomCompany],
   [/日期|时间|date/i, randomRecentDate],
   [/备注|说明|描述|原因|详情/i, () => randomText('测试备注')],
   [/金额|价格|费用|amount/i, () => String(randInt(100, 99999))],
   [/数量|件数|个数|count|num/i, () => String(randInt(1, 500))],
   [/比例|百分比|占比/i, () => String(randInt(1, 100))],
-  [/编号|编码|code|码值|码|id|号/i, randomCode],
   [/年龄/i, () => String(randInt(18, 65))],
   [/密码|password/i, () => `Pwd${randInt(10000, 99999)}!`],
   [/名称|名字/i, () => (randInt(0, 1) ? randomCompany() : randomChineseName())],

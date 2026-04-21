@@ -270,6 +270,10 @@ const App: React.FC = () => {
     return field.currentValue.trim().length > 0;
   };
 
+  /** 页面上已展示校验错误（有值但 pattern 等不通过时仍需重填） */
+  const hasValidationError = (field: FormFieldInfo): boolean =>
+    Boolean(field.validationError?.trim());
+
   // 扫描表单
   const handleScan = useCallback(async () => {
     setScanning(true);
@@ -373,7 +377,10 @@ const App: React.FC = () => {
           break;
         }
 
-        const needFillFields = scannedFields.filter((field) => !hasFieldValue(field));
+        // 空字段要填；已有值但校验失败（如「请输入字母或数字」）也要纳入下一轮生成/填充
+        const needFillFields = scannedFields.filter(
+          (field) => !hasFieldValue(field) || hasValidationError(field),
+        );
         if (needFillFields.length === 0) break;
 
         setScanning(false);
@@ -412,7 +419,7 @@ const App: React.FC = () => {
 
         totalFilled += fillResponse.filledCount || 0;
 
-        // 如果字段数量没有增加，且本轮没有新填充，说明已趋于稳定，提前结束
+        // 字段数量没有增加，且本轮没有新填充，说明已趋于稳定，提前结束
         if (
           previousFieldCount === scannedFields.length
           && (fillResponse.filledCount || 0) === 0

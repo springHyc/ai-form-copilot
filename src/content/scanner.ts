@@ -123,8 +123,17 @@ function extractValidationError(container: HTMLElement): string | undefined {
     const t = el.textContent?.trim();
     if (t && !parts.includes(t)) parts.push(t);
   });
-  if (parts.length === 0) return undefined;
-  return parts.join('；');
+  if (parts.length > 0) return parts.join('；');
+
+  // 仅有错误态样式、文案在别处或未挂载到 explain 节点时兜底（避免有红框却被当成「已填好」）
+  if (container.classList.contains('ant-form-item-has-error')) {
+    const help = container.querySelector<HTMLElement>('.ant-form-item-explain-connected');
+    const helpText = help?.textContent?.trim();
+    if (helpText) return helpText;
+    return '校验未通过';
+  }
+
+  return undefined;
 }
 
 /** 合并 DOM 推断的 maxLength 与 input 上的 maxLength */
