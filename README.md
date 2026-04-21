@@ -319,6 +319,25 @@ Transfer:   左侧列表随机勾选 1~3 项 → 点击右移按钮
 | ------------------ | ---------------- | -------- | -------------------------------------- |
 | React Quill 富文本 | ✅ 识别为 custom | ❌       | 富文本编辑器交互复杂，暂不支持自动填充 |
 
+## 失败案例汇报模板
+
+发现「扫不到 / 填不上 / Mock 或 AI 数据过不了校验」时，按下面模板新开一条（可贴在 Issue、备忘录或 `CHANGELOG` 草稿里），并尽量附上 **对应 `.ant-form-item` 的 DOM** 或 **业务代码路径（文件:行号）**，便于在 `src/__tests__/marketing-plan-failure-cases.test.ts` 里加回归用例。
+
+**Cursor**：在聊天里说 **「失败案例」** 或 **「失败案例模板」** 等，可触发项目技能 **`ai-form-failure-case`**（`.cursor/skills/ai-form-failure-case/SKILL.md`），由助手直接贴出同款模板供你填空。
+
+```markdown
+失败案例 N
+
+1. 页面：<系统/菜单路径，如 营销中台-短链管理-新增>
+2. 失败字段（label）：<表单项标签文案>
+3. 字段类型（你看到的）：<scanner 识别的类型：input / textarea / select / radio / date / number …>
+4. 期望结果：<应如何填或应满足什么规则>
+5. 实际结果：<当前插件行为>
+6. 关键 DOM：贴出问题字段所在整段 `.ant-form-item` HTML；若有红字，一并贴 `.ant-form-item-explain` / `#xxx_help` / `role="alert"` 结构
+7. 业务代码（可选）：`<仓库>/path/to/File.tsx:起始行-结束行>`（含 ProForm 字段名、rules、fieldProps）
+8. 环境（可选）：antd 主版本（4/5）、Chrome 版本、是否一键填充 / 仅填充
+```
+
 ## License
 
 MIT

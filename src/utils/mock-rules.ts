@@ -11,6 +11,14 @@ function randInt(min: number, max: number): number {
 /** 从数组中随机选一个 */
 const pickOne = <T>(arr: T[]): T => arr[randInt(0, arr.length - 1)];
 
+/** 本地日历 YYYY-MM-DD（避免 toISOString 的 UTC 换日导致与页面 disabledDate 不一致） */
+function formatLocalYmd(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 /** 从数组中随机选 N 个不重复的 */
 function pickN<T>(arr: T[], n: number): T[] {
   const shuffled = [...arr].sort(() => randInt(0, 1) ? 1 : -1);
@@ -99,32 +107,48 @@ function randomAddress(): string {
 
 /** 生成近期日期（基于当前时间戳，绝不重复） */
 function randomRecentDate(): string {
-  const now = new Date();
-  now.setDate(now.getDate() + randInt(-90, 90));
-  now.setHours(randInt(0, 23), randInt(0, 59));
-  return now.toISOString().slice(0, 10);
+  const d = new Date();
+  d.setDate(d.getDate() + randInt(-90, 90));
+  return formatLocalYmd(d);
 }
 
-/** 生成未来日期（用于有前置/禁用日期约束的执行时间类字段） */
+/** 生成未来日期（用于有前置/禁用日期约束的执行时间类字段；贴近今天，避免跑出很远） */
 function randomFutureDate(): string {
-  const now = new Date();
-  now.setDate(now.getDate() + randInt(1, 30));
-  now.setHours(randInt(9, 20), randInt(0, 59), 0, 0);
-  return now.toISOString().slice(0, 10);
+  const d = new Date();
+  d.setDate(d.getDate() + randInt(1, 10));
+  return formatLocalYmd(d);
 }
 
-/** 生成未来日期时间（YYYY-MM-DD HH:mm:ss） */
-function randomFutureDateTime(): string {
-  const now = new Date();
-  now.setDate(now.getDate() + randInt(1, 30));
-  now.setHours(randInt(9, 20), randInt(0, 59), randInt(0, 59), 0);
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  const hh = String(now.getHours()).padStart(2, '0');
-  const mi = String(now.getMinutes()).padStart(2, '0');
-  const ss = String(now.getSeconds()).padStart(2, '0');
+/**
+ * 生成未来日期时间（YYYY-MM-DD HH:mm:ss）。
+ * 使用本地日历日 + 正午为基准，避免跨日/时区边界与 antd disabledDate（常见：昨天及之前不可选）冲突。
+ * hints 中含名单包/需晚于等业务文案时，略抬高下限日，减少贴业务动态下限。
+ */
+function randomFutureDateTime(hints = ''): string {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  const heavy = /需晚于|不得早于|不能早于昨天|名单包|计划.*晚于|重复析出|单次型/i.test(hints);
+  let minAdd = 1;
+  if (heavy) minAdd = 2;
+  // 首选「今天往后几天～约两周」，避免 1～30 天跑得远、也不像真实排期
+  const spread = heavy ? 12 : 6;
+  const maxAdd = minAdd + spread;
+  d.setDate(d.getDate() + randInt(minAdd, maxAdd));
+  // antd@4 常见 disabledTime 仅放开整点/半点（如 scenesf 短信任务执行时间）；与 hideDisabledOptions 组合后列里往往只有 :00、:30
+  const minute = pickOne([0, 30]);
+  d.setHours(randInt(10, 17), minute, 0, 0);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  const ss = String(d.getSeconds()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+}
+
+/** extra/ruleHints 暗示不可选过去日（与 disabledDate 常见写法对齐，不解析 JS） */
+function hintsSuggestNoPastDate(hints: string): boolean {
+  return /需晚于|不得早于|不能早于|昨天|前天|名单包|计划.*时间|执行时间|生效时间|disabledDate|不可选.*过去/i.test(hints);
 }
 
 /** 生成随机公司名 */
@@ -391,19 +415,17 @@ function generateNumberValue(field: FormFieldInfo): string {
   return String(randInt(Math.ceil(min), Math.floor(max)));
 }
 
-/** 生成日期范围（开始日期 + 结束日期，逗号分隔） */
+/** 生成日期范围（开始日期 + 结束日期，逗号分隔；本地日历，与单 DatePicker Mock 一致） */
 function randomDateRange(): string {
-  const now = new Date();
-  const start = new Date(now);
+  const start = new Date();
   start.setDate(start.getDate() + randInt(-30, 30));
   const end = new Date(start);
   end.setDate(end.getDate() + randInt(1, 60));
-  return `${start.toISOString().slice(0, 10)},${end.toISOString().slice(0, 10)}`;
+  return `${formatLocalYmd(start)},${formatLocalYmd(end)}`;
 }
 
 /** 关键词到生成函数的映射（顺序敏感：更具体的规则须排在宽泛规则之前） */
 const LABEL_RULES: [RegExp, () => string][] = [
-  [/执行时间|生效时间|触发时间|运行时间|定时/i, randomFutureDateTime],
   [/开始时间|结束时间|截止时间|到期时间/i, randomFutureDate],
   // 须在「姓名|…|处理人」之前：否则「处理人手机号」会先被 处理人 命中成中文名
   [/手机|电话|座机|联系方式|tel|phone/i, randomPhone],
@@ -472,6 +494,27 @@ export function generateMockData(fields: FormFieldInfo[]): FillData {
       continue;
     }
 
+    /*
+     * DatePicker / DateTime（scanner 多为 type=date；Pro 系同理）
+     * Mock 决策顺序（须与 antd-adapter fillDate、AI 规则 5 一起看）：
+     * 1) 本分支：label 含 执行/生效/触发/运行/定时(非「定时器」) 或 combineFieldHints 命中 hintsSuggestNoPastDate
+     *    → randomFutureDateTime：本地日 +1～+7 天（heavy hints +2～+14）、分仅 00/30、时 10–17。
+     * 2) LABEL_RULES：开始|结束|截止|到期 → randomFutureDate（仅 YMD，+1～+10 天）；宽泛 /日期|时间|date/ → randomRecentDate（±90 天，易与「仅未来可选」页面冲突，见下方「已知缺口」）。
+     * 3) switch type=date：hintsSuggestNoPastDate → randomFutureDateTime，否则 randomRecentDate。
+     * 填充侧：fillSingleDate 打开下拉后，以本机「今天」为中心按 0、+1、-1… 日尝试点到第一个非禁选日，再不行才用 Mock/AI 的日期；然后 tryPickTimeInDropdown（仍用字符串里的时刻）+ OK，失败则回退改 input。
+     */
+    // 执行/定时类 + 日期时间：须晚于「昨天」等常见 disabledDate，并吃 extra 里名单包等提示
+    if (
+      field.type === 'date'
+      && (
+        /执行时间|生效时间|触发时间|运行时间|定时(?!器)/i.test(field.label)
+        || hintsSuggestNoPastDate(hints)
+      )
+    ) {
+      data[field.id] = randomFutureDateTime(hints);
+      continue;
+    }
+
     // 通过 label 关键词匹配
     const matched = LABEL_RULES.find(([pattern]) => pattern.test(field.label));
     if (matched) {
@@ -488,7 +531,7 @@ export function generateMockData(fields: FormFieldInfo[]): FillData {
         data[field.id] = randomText('这是自动生成的测试数据');
         break;
       case 'date':
-        data[field.id] = randomRecentDate();
+        data[field.id] = hintsSuggestNoPastDate(hints) ? randomFutureDateTime(hints) : randomRecentDate();
         break;
       case 'checkbox':
         data[field.id] = 'true';

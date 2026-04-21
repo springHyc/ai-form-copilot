@@ -226,6 +226,61 @@ describe("失败案例 4：执行时间（ProFormDateTimePicker → date + 带�
       d: Number(v.slice(8, 10)),
     });
     expect(parseTimeParts(v)).not.toBeNull();
+    // 对齐 antd@4 常见 disabledTime 仅放开整点/半点（如 scenesf 短信执行时间）
+    expect(["00", "30"]).toContain(v.slice(14, 16));
+  });
+
+  it("Mock：无 extra 时「执行时间」至少为本地次日（对齐常见 disabledDate：昨天及以前不可选）", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 3, 20, 12, 0, 0));
+    const field: FormFieldInfo = {
+      id: "field_exec",
+      label: "执行时间",
+      type: "date",
+      required: true,
+    };
+    const data = generateMockData([field]);
+    const v = String(data[field.id] ?? "");
+    const parts = parseIsoDateParts(v)!;
+    const tMin = new Date(2026, 3, 21);
+    const got = parts.y * 10000 + parts.m * 100 + parts.d;
+    const min = tMin.getFullYear() * 10000 + (tMin.getMonth() + 1) * 100 + tMin.getDate();
+    expect(got).toBeGreaterThanOrEqual(min);
+    vi.useRealTimers();
+  });
+
+  it("Mock：extra 含名单包等提示时日偏移下限抬高（计划执行时间需晚于名单包）", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 3, 20, 12, 0, 0));
+    const field: FormFieldInfo = {
+      id: "field_exec",
+      label: "执行时间",
+      type: "date",
+      required: true,
+      extra:
+        "注：重复析出型名单包，计划执行时间需晚于名单包执行时间；单次型名单包，名单包已完成析出则不再校验名单包执行时间",
+    };
+    const data = generateMockData([field]);
+    const v = String(data[field.id] ?? "");
+    const parts = parseIsoDateParts(v)!;
+    const tMin = new Date(2026, 3, 22);
+    const got = parts.y * 10000 + parts.m * 100 + parts.d;
+    const min = tMin.getFullYear() * 10000 + (tMin.getMonth() + 1) * 100 + tMin.getDate();
+    expect(got).toBeGreaterThanOrEqual(min);
+    vi.useRealTimers();
+  });
+
+  it("Mock：date + extra 暗示不可选过去时走未来日期时间（非「执行时间」标签也可命中）", () => {
+    const field: FormFieldInfo = {
+      id: "f",
+      label: "自定义时间",
+      type: "date",
+      required: true,
+      extra: "需晚于名单包执行时间",
+    };
+    const data = generateMockData([field]);
+    const v = String(data[field.id] ?? "");
+    expect(v).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
   });
 });
 

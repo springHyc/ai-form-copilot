@@ -283,14 +283,22 @@ function splitDateRangeValue(value: string): [string, string] | null {
   return null;
 }
 
-/** 当前可见的日期下拉（antd 5 / rc-picker 可能不用 -hidden 类） */
+/** 当前可见的日期下拉（antd 4+ / rc-picker；兼容仅依赖样式、无 -hidden 类的情况） */
 function getVisiblePickerDropdown(): HTMLElement | null {
+  const candidates: HTMLElement[] = [];
   for (const el of document.querySelectorAll<HTMLElement>('.ant-picker-dropdown')) {
     if (el.classList.contains('ant-picker-dropdown-hidden')) continue;
+    const st = window.getComputedStyle(el);
+    if (st.display === 'none' || st.visibility === 'hidden' || Number(st.opacity) === 0) continue;
     const r = el.getBoundingClientRect();
-    if (r.width > 1 && r.height > 1) return el;
+    if (r.width > 1 && r.height > 1) candidates.push(el);
   }
-  return null;
+  if (candidates.length === 0) return null;
+  return candidates.reduce((best, el) => {
+    const rb = best.getBoundingClientRect();
+    const re = el.getBoundingClientRect();
+    return re.width * re.height >= rb.width * rb.height ? el : best;
+  });
 }
 
 /** 从某个面板头部解析当前展示的年、月（兼容中文「3月」与英文 Jan） */
@@ -328,12 +336,30 @@ function clickDayInPanel(panel: HTMLElement, day: number): boolean {
   return false;
 }
 
-/** DateTimePicker 时间面板：按顺序点击时/分/秒（存在几列就处理几列） */
+function isPickerTimeCellDisabled(el: HTMLElement): boolean {
+  if (el.classList.contains('ant-picker-time-panel-cell-disabled')) return true;
+  if (el.closest('.ant-picker-time-panel-cell-disabled')) return true;
+  if (el.getAttribute('aria-disabled') === 'true') return true;
+  return false;
+}
+
+/** 与 rc-picker 列内文案对齐（antd@4 常见为 "9" 而非 "09"） */
+function normalizePickerTimeCellText(raw: string): string {
+  const t = raw.trim();
+  const n = parseInt(t, 10);
+  if (!Number.isNaN(n) && /^\d+$/.test(t)) return String(n).padStart(2, '0');
+  return t;
+}
+
+/** DateTimePicker 时间面板：按顺序点击时/分/秒（存在几列就处理几列）；兼容 antd@4 + hideDisabledOptions */
 async function tryPickTimeInDropdown(dropdown: HTMLElement, value: string): Promise<boolean> {
   const time = parseTimeParts(value);
   if (!time) return false;
 
-  const columns = dropdown.querySelectorAll<HTMLElement>('.ant-picker-time-panel-column');
+  let columns = dropdown.querySelectorAll<HTMLElement>('.ant-picker-time-panel-column');
+  if (columns.length === 0) {
+    columns = dropdown.querySelectorAll<HTMLElement>('ul.ant-picker-time-panel-column');
+  }
   if (columns.length === 0) return false;
 
   const candidates = [String(time.h).padStart(2, '0'), String(time.m).padStart(2, '0'), String(time.sec).padStart(2, '0')];
@@ -341,15 +367,89 @@ async function tryPickTimeInDropdown(dropdown: HTMLElement, value: string): Prom
 
   for (let i = 0; i < limit; i++) {
     const col = columns[i];
-    const cell = Array.from(col.querySelectorAll<HTMLElement>('.ant-picker-time-panel-cell'))
-      .find((el) => el.textContent?.trim() === candidates[i]);
+    const allCells = Array.from(
+      col.querySelectorAll<HTMLElement>('li.ant-picker-time-panel-cell, .ant-picker-time-panel-cell'),
+    );
+    const enabled = allCells.filter((el) => !isPickerTimeCellDisabled(el));
+    const usable = enabled.length > 0 ? enabled : allCells;
+    const want = candidates[i];
+    let cell = usable.find((el) => normalizePickerTimeCellText(el.textContent ?? '') === want);
+    if (!cell && usable.length > 0) {
+      const wantNum = parseInt(want, 10);
+      if (!Number.isNaN(wantNum)) {
+        cell = usable.reduce<HTMLElement | undefined>((best, el) => {
+          const n = parseInt(el.textContent?.trim() ?? '', 10);
+          if (Number.isNaN(n)) return best;
+          if (!best) return el;
+          const bn = parseInt(best.textContent?.trim() ?? '', 10);
+          return Math.abs(n - wantNum) < Math.abs(bn - wantNum) ? el : best;
+        }, undefined);
+      }
+    }
+    if (!cell && usable.length > 0) {
+      const idx = Math.min(Math.floor(usable.length / 2), usable.length - 1);
+      cell = usable[idx];
+    }
     if (cell) {
-      simulateClick(cell);
-      await sleep(60);
+      simulatePointerClick(cell);
+      await sleep(80);
     }
   }
 
   return true;
+}
+
+function localYmdFromDate(d: Date): { y: number; m: number; d: number } {
+  return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() };
+}
+
+/**
+ * 以「今天」为中心：今天、明天、昨天、后天、前天…（本地日历）
+ * 用于在页面 disabledDate 未知时，优先点到第一个非禁选日。
+ */
+function* localDatesFromToday(maxRadius: number): Generator<{ y: number; m: number; d: number }> {
+  const noon = new Date();
+  noon.setHours(12, 0, 0, 0);
+  yield localYmdFromDate(noon);
+  for (let r = 1; r <= maxRadius; r++) {
+    const later = new Date(noon);
+    later.setDate(later.getDate() + r);
+    yield localYmdFromDate(later);
+    const earlier = new Date(noon);
+    earlier.setDate(earlier.getDate() - r);
+    yield localYmdFromDate(earlier);
+  }
+}
+
+/** 翻月直到点到目标日，或步数耗尽（仅点未带 ant-picker-cell-disabled 的 in-view 格） */
+async function navigateUntilDayClicked(
+  getDropdown: () => HTMLElement | null,
+  y: number,
+  m: number,
+  d: number,
+): Promise<boolean> {
+  for (let step = 0; step < 36; step++) {
+    const dd = getDropdown();
+    if (!dd) return false;
+    if (tryClickDateInDropdown(dd, y, m, d)) return true;
+    const leftPanel = dd.querySelector<HTMLElement>('.ant-picker-panel');
+    if (!leftPanel) return false;
+    const left = parsePanelYearMonth(leftPanel);
+    if (!left) return false;
+    const targetV = y * 12 + (m - 1);
+    const leftV = left.y * 12 + (left.m - 1);
+    const prevBtn = leftPanel.querySelector<HTMLElement>(
+      '.ant-picker-header-prev-btn:not(.ant-picker-header-prev-btn-disabled)',
+    );
+    const nextBtn = leftPanel.querySelector<HTMLElement>(
+      '.ant-picker-header-next-btn:not(.ant-picker-header-next-btn-disabled)',
+    );
+    if (targetV < leftV && prevBtn) simulateClick(prevBtn);
+    else if (targetV > leftV && nextBtn) simulateClick(nextBtn);
+    else return false;
+    await sleep(120);
+  }
+  return false;
 }
 
 /** DateTimePicker 常需要点击 OK 才会真正写回值 */
@@ -465,39 +565,43 @@ async function fillSingleDate(container: HTMLElement, value: string): Promise<bo
   const input = picker.querySelector<HTMLInputElement>('.ant-picker-input input, input');
   if (!input || input.disabled) return false;
 
-  simulateClick(input);
-  await sleep(350);
+  simulatePointerClick(input);
+  await sleep(400);
+  let dropdown = getVisiblePickerDropdown();
+  if (!dropdown) {
+    simulatePointerClick(picker);
+    await sleep(400);
+    dropdown = getVisiblePickerDropdown();
+  }
 
-  const dropdown = getVisiblePickerDropdown();
-  const dateParts = parseIsoDateParts(value);
-  if (dropdown && dateParts) {
-    for (let step = 0; step < 36; step++) {
-      if (tryClickDateInDropdown(dropdown, dateParts.y, dateParts.m, dateParts.d)) {
-        // DateTimePicker: 选完日期后补时间 + 确认
-        await sleep(80);
-        await tryPickTimeInDropdown(dropdown, value);
-        await confirmPickerIfNeeded(dropdown);
-        document.body.click();
-        await sleep(80);
-        return true;
+  const getDd = (): HTMLElement | null => getVisiblePickerDropdown() ?? dropdown;
+
+  const afterDayPicked = async (): Promise<boolean> => {
+    await sleep(120);
+    const ddTime = getVisiblePickerDropdown() ?? getDd();
+    if (!ddTime) return false;
+    await tryPickTimeInDropdown(ddTime, value);
+    await confirmPickerIfNeeded(ddTime);
+    document.body.click();
+    await sleep(100);
+    return true;
+  };
+
+  if (dropdown) {
+    let picked = false;
+    for (const ymd of localDatesFromToday(60)) {
+      if (await navigateUntilDayClicked(getDd, ymd.y, ymd.m, ymd.d)) {
+        picked = true;
+        break;
       }
-      const leftPanel = dropdown.querySelector<HTMLElement>('.ant-picker-panel');
-      if (!leftPanel) break;
-      const left = parsePanelYearMonth(leftPanel);
-      if (!left) break;
-      const targetV = dateParts.y * 12 + (dateParts.m - 1);
-      const leftV = left.y * 12 + (left.m - 1);
-      const prevBtn = leftPanel.querySelector<HTMLElement>(
-        '.ant-picker-header-prev-btn:not(.ant-picker-header-prev-btn-disabled)',
-      );
-      const nextBtn = leftPanel.querySelector<HTMLElement>(
-        '.ant-picker-header-next-btn:not(.ant-picker-header-next-btn-disabled)',
-      );
-      if (targetV < leftV && prevBtn) simulateClick(prevBtn);
-      else if (targetV > leftV && nextBtn) simulateClick(nextBtn);
-      else break;
-      await sleep(100);
     }
+    if (!picked) {
+      const dateParts = parseIsoDateParts(value);
+      if (dateParts) {
+        picked = await navigateUntilDayClicked(getDd, dateParts.y, dateParts.m, dateParts.d);
+      }
+    }
+    if (picked && (await afterDayPicked())) return true;
   }
 
   input.focus();

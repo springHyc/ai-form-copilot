@@ -9,6 +9,7 @@
 - **扫描（Select）**：已选值兼容 antd 4 `.ant-select-selection-selected-value`（与下方 Select 填充配套）。
 - **Mock**：无 `options` 的 **select**（异步下拉，如「资金方」）兜底 **`random`**；**手机|电话** 规则排在 **姓名|…|处理人** 之前，避免「处理人手机号」被误当成中文名。（渠道代码、`wantsAlphanumeric` 等见 **0.1.1**。）
 - **Mock / AI（通用字符集）**：扫描读取 `input`/`textarea` 的 HTML `pattern` 写入 `constraints.pattern`；支持 `data-ai-pattern` / `data-pattern` 等（rules 不落 DOM 时由业务挂载）；Mock 支持无 `^$` 的纯 `[...]+` 形态；中文「只能包含…」枚举仍用于回灌。**校验文案**：显式匹配 `.ant-form-item-explain-connected`、`[role="alert"]` 内层 `.ant-form-item-explain-error`（外圈 flex 包裹仍属表单项子树时可直接命中）；若错误区仅在 `document.getElementById(aria-describedby)` 可及（与控件不同子树），在 `has-error` / `aria-invalid` 时同样解析。
+- **Mock / DatePicker（日期时间）**：Mock 用本地近期日 + 整半点（:00/:30）以贴合常见 disabledDate/disabledTime；单选填充以本机「今天」为锚向前后试探首个非禁选日，再按字符串落时分并兼容 antd@4 下拉与时间列；日期类 Mock/范围亦统一本地 YMD；AI 规则侧重近期日更易对上 disabled。
 - **Select 填充**：兼容 antd 4 / 5+ / `.rc-select-dropdown`；`simulatePointerClick`；下拉可见性修正（含 `opacity:''` 误判）；`[role="option"]`、`.ant-select-item-option-content`。Cascader / TreeSelect 打开方式一致。
 - **AI 生成**：select 未列出可选值时须返回 **`random`**。（其余 AI / 一键填充 / 校验 DOM 见 **0.1.1**。）
 
