@@ -554,7 +554,39 @@ async function navigateRangeMonthToward(dropdown: HTMLElement, y: number, m: num
   else if (targetV > rightV && nextBtn) simulateClick(nextBtn);
 }
 
-/** Ant Design RangePicker / ProFormDateRangePicker：同一弹层内先后点选开始、结束，不能分两次点 input 打断流程 */
+/**
+ * 通过 placeholder 推断 RangePicker 是否带 showTime（`format='YYYY-MM-DD HH:mm:ss'` 这类）。
+ * antd 不把 `format` 落到 DOM，`.ant-picker-suffix` 也始终是日历图标；
+ * 业务通常会在 showTime 时自写 placeholder=['开始时间','结束时间'] 之类带「时」「HH:mm」等字样。
+ * 注：这只是「直写 fallback」时的保底判断；dropdown 路径以是否出现 time-panel / OK 按钮为准，更可靠。
+ */
+function rangePickerLikelyHasShowTime(picker: HTMLElement): boolean {
+  // 注意：JS `\b` 是 ASCII word boundary，中文字符间不成立 —— 不能写 `\b时间\b`
+  const TIME_HINT_RE = /时分秒|时\s*分|HH[:：]?mm|时间/i;
+  const inputs = picker.querySelectorAll<HTMLInputElement>('.ant-picker-input input');
+  for (const inp of inputs) {
+    const ph = inp.getAttribute('placeholder')?.trim() ?? '';
+    if (TIME_HINT_RE.test(ph)) return true;
+    const val = inp.value ?? '';
+    if (/\d{2}:\d{2}/.test(val)) return true;
+  }
+  return false;
+}
+
+function ymdOnly(p: { y: number; m: number; d: number }): string {
+  return `${p.y}-${String(p.m).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`;
+}
+
+/**
+ * Ant Design RangePicker / ProFormDateRangePicker。
+ *
+ * 流程：
+ *   1. 优先打开下拉，逐个面板点选开始日；若此时出现 `.ant-picker-time-panel` / `.ant-picker-ok`
+ *      （= `showTime` 场景，如 new-market 首页弹窗「有效时间」），点选时间列并按 OK；再继续结束日同样处理。
+ *   2. 下拉走不通（jsdom / antd 变种）时兜底：`inputs` 非 `readOnly` 直接写入，
+ *      **保留字符串里的时分秒**（仅在 placeholder 没有 showTime 暗示时回退为纯 YYYY-MM-DD，
+ *      避免把 `HH:mm:ss` 丢给只支持 `YYYY-MM-DD` format 的 rc-picker 触发 parse 失败）。
+ */
 async function fillDateRange(container: HTMLElement, value: string, typeOccurrence = 0): Promise<boolean> {
   const list = listInFormItem(container, '.ant-picker.ant-picker-range, .ant-picker-range').filter(
     (el) => !el.classList.contains('ant-picker-disabled'),
@@ -568,24 +600,8 @@ async function fillDateRange(container: HTMLElement, value: string, typeOccurren
   const end = parseIsoDateParts(rangeParts[1]);
   if (!start || !end) return false;
 
-  const inputs = picker.querySelectorAll<HTMLInputElement>('.ant-picker-input input');
-  const anyReadOnly = inputs.length > 0 && [...inputs].some((inp) => inp.readOnly);
-
-  // 非 readOnly 时优先直接写入（易与 React/rc-picker 同步）
-  if (inputs.length >= 2 && !anyReadOnly) {
-    const a = `${start.y}-${String(start.m).padStart(2, '0')}-${String(start.d).padStart(2, '0')}`;
-    const b = `${end.y}-${String(end.m).padStart(2, '0')}-${String(end.d).padStart(2, '0')}`;
-    inputs[0].focus();
-    setNativeValue(inputs[0], a);
-    inputs[0].dispatchEvent(new Event('input', { bubbles: true }));
-    inputs[0].dispatchEvent(new Event('change', { bubbles: true }));
-    inputs[1].focus();
-    setNativeValue(inputs[1], b);
-    inputs[1].dispatchEvent(new Event('input', { bubbles: true }));
-    inputs[1].dispatchEvent(new Event('change', { bubbles: true }));
-    inputs[1].blur();
-    return true;
-  }
+  const inputs = Array.from(picker.querySelectorAll<HTMLInputElement>('.ant-picker-input input'));
+  const anyReadOnly = inputs.some((inp) => inp.readOnly);
 
   const opener = inputs[0] ?? picker;
   simulateClick(opener);
@@ -596,25 +612,70 @@ async function fillDateRange(container: HTMLElement, value: string, typeOccurren
     await sleep(400);
     dropdown = getVisiblePickerDropdown();
   }
-  if (!dropdown) return false;
 
-  for (let step = 0; step < 36; step++) {
-    if (tryClickDateInDropdown(dropdown, start.y, start.m, start.d)) break;
-    await navigateRangeMonthToward(dropdown, start.y, start.m);
-    await sleep(100);
+  if (dropdown) {
+    const hasShowTimeDropdown = () => {
+      const dd = getVisiblePickerDropdown() ?? dropdown;
+      return Boolean(
+        dd?.querySelector('.ant-picker-time-panel, .ant-picker-ok button'),
+      );
+    };
+
+    for (let step = 0; step < 36; step++) {
+      const dd = getVisiblePickerDropdown() ?? dropdown;
+      if (tryClickDateInDropdown(dd, start.y, start.m, start.d)) break;
+      await navigateRangeMonthToward(dd, start.y, start.m);
+      await sleep(100);
+    }
+    await sleep(180);
+
+    if (hasShowTimeDropdown()) {
+      const dd = getVisiblePickerDropdown() ?? dropdown;
+      await tryPickTimeInDropdown(dd, rangeParts[0]);
+      await confirmPickerIfNeeded(dd);
+      await sleep(180);
+    }
+
+    for (let step = 0; step < 36; step++) {
+      const dd = getVisiblePickerDropdown() ?? dropdown;
+      if (tryClickDateInDropdown(dd, end.y, end.m, end.d)) break;
+      await navigateRangeMonthToward(dd, end.y, end.m);
+      await sleep(100);
+    }
+    await sleep(180);
+
+    if (hasShowTimeDropdown()) {
+      const dd = getVisiblePickerDropdown() ?? dropdown;
+      await tryPickTimeInDropdown(dd, rangeParts[1]);
+      await confirmPickerIfNeeded(dd);
+    }
+
+    document.body.click();
+    await sleep(120);
+
+    const filledOk = inputs.length >= 2 && inputs.every((inp) => inp.value?.trim());
+    if (filledOk) return true;
   }
-  await sleep(220);
 
-  for (let step = 0; step < 36; step++) {
-    const dd = getVisiblePickerDropdown() ?? dropdown;
-    if (tryClickDateInDropdown(dd, end.y, end.m, end.d)) break;
-    await navigateRangeMonthToward(dd, end.y, end.m);
-    await sleep(100);
+  if (inputs.length >= 2 && !anyReadOnly) {
+    const keepTime = rangePickerLikelyHasShowTime(picker);
+    const a = keepTime ? rangeParts[0].trim() : ymdOnly(start);
+    const b = keepTime ? rangeParts[1].trim() : ymdOnly(end);
+    inputs[0].focus();
+    setNativeValue(inputs[0], a);
+    inputs[0].dispatchEvent(new Event('input', { bubbles: true }));
+    inputs[0].dispatchEvent(new Event('change', { bubbles: true }));
+    inputs[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, keyCode: 13 }));
+    inputs[1].focus();
+    setNativeValue(inputs[1], b);
+    inputs[1].dispatchEvent(new Event('input', { bubbles: true }));
+    inputs[1].dispatchEvent(new Event('change', { bubbles: true }));
+    inputs[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, keyCode: 13 }));
+    inputs[1].blur();
+    return true;
   }
 
-  document.body.click();
-  await sleep(120);
-  return true;
+  return false;
 }
 
 async function fillSingleDate(container: HTMLElement, value: string, typeOccurrence = 0): Promise<boolean> {

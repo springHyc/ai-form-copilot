@@ -32,7 +32,7 @@ description: >-
 ## 用户填完后的跟进（按需）
 
 - 根据 DOM / 规则判断应改 `scanner.ts`、`antd-adapter.ts`、`mock-rules.ts`、`popup/App.tsx` 或 `ai-service.ts`。
-- 在 `src/__tests__/marketing-plan-failure-cases.test.ts` 增加一条回归用例（jsdom 片段对齐真实 DOM）。
+- 在 `src/__tests__/failure-cases.test.ts` 增加一条回归用例（jsdom 片段对齐真实 DOM）。
 - 若模板正文有更新，与 `README.md` 中「失败案例汇报模板」一节保持同步。
 
 ## 单一职责

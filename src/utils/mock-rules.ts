@@ -422,13 +422,25 @@ function generateNumberValue(field: FormFieldInfo): string {
   return String(randInt(Math.ceil(min), Math.floor(max)));
 }
 
-/** 生成日期范围（开始日期 + 结束日期，逗号分隔；本地日历，与单 DatePicker Mock 一致） */
+/**
+ * 生成日期范围（开始 + 结束，英文逗号分隔）。
+ * 始终带 HH:mm:ss（分钟仅 :00/:30，时段 10–17）：
+ *   - RangePicker 若 `showTime`（如 new-market 首页弹窗「有效时间」`format='YYYY-MM-DD HH:mm:ss'`），
+ *     无时分秒则 Mock 只能写到年月日，页面会卡在「请选择有效时间」。
+ *   - RangePicker 若未开 showTime，antd-adapter `fillDateRange` 会在面板中仅点日期跳过时间列，
+ *     或在直写兜底时按 placeholder 回退为纯 YYYY-MM-DD，不会把冗余时间抛给 rc-picker。
+ */
 function randomDateRange(): string {
   const start = new Date();
   start.setDate(start.getDate() + randInt(-30, 30));
   const end = new Date(start);
   end.setDate(end.getDate() + randInt(1, 60));
-  return `${formatLocalYmd(start)},${formatLocalYmd(end)}`;
+  const pickHms = () => {
+    const h = String(randInt(10, 17)).padStart(2, '0');
+    const m = pickOne([0, 30]);
+    return `${h}:${String(m).padStart(2, '0')}:00`;
+  };
+  return `${formatLocalYmd(start)} ${pickHms()},${formatLocalYmd(end)} ${pickHms()}`;
 }
 
 /** 关键词到生成函数的映射（顺序敏感：更具体的规则须排在宽泛规则之前） */

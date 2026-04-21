@@ -1,10 +1,7 @@
 /**
- * 回归单测：营销计划第一步等页面曾出现的失败案例。
- * 对应业务参考 jarvis …/createMarketPlan/FirstStep.tsx（DOM 为 antd 类名近似还原）。
- * 失败案例 7：scenesf 资方详情等 antd 4.x Select（.ant-select-selection / .ant-select-dropdown-menu-item）。
- * 截图回归：抽屉「新增处理人」— 对齐 new-apple …/repayment-handler/drawer.tsx：资金方 / 处理人姓名 为异步
- *   Select；处理人手机号为 disabled，由姓名 onChange 联动带出，非手填。
- *
+ * 失败案例回归合集：覆盖 scan / mock / fill / popup 四侧曾经漏过的场景。
+ * 按「失败案例 N」顺序追加（模板见 .cursor/skills/ai-form-failure-case/SKILL.md），DOM 用 antd 类名在 jsdom 里近似还原。
+ * 典型参考页：jarvis 营销计划 FirstStep.tsx、scenesf antd 4.x Select、new-apple 新增处理人抽屉、new-market 首页弹窗 RangePicker 等。
  * 与一键填充筛选逻辑保持一致：src/popup/App.tsx — hasFieldValue / hasValidationError
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
@@ -848,5 +845,101 @@ describe("扫描：嵌套 .ant-form-item 不重复计数（防 field_N 错位）
     `);
     const fields = scanFormFields();
     expect(fields.map((f) => f.label)).toEqual(["外层"]);
+  });
+});
+
+/**
+ * 失败案例 9：new-market 榕树运营管理系统首页弹窗「有效时间」
+ * 业务代码：new-market/src/pages/rongshu/common-manage/home-popup/add-info.tsx:360-362
+ *   <RangePicker showTime={{ format: 'HH:mm:ss' }} format='YYYY-MM-DD HH:mm:ss' placeholder={['开始时间', '结束时间']} />
+ * 旧实现：fillDateRange 直写路径把值截成 YYYY-MM-DD，丢掉 HH:mm:ss —— 页面仍提示「请选择有效时间」。
+ * 修复：Mock 固定给出 HH:mm:ss 的双端，fillDateRange 保留整串；placeholder 暗示 showTime 时不回退纯日期。
+ */
+describe("失败案例 9：RangePicker + showTime（new-market 首页弹窗「有效时间」）", () => {
+  it("扫描为 daterange，placeholder 带「开始时间/结束时间」进入 ruleHints", () => {
+    mountVisibleForm(`
+      <div class="ant-form-item">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label>有效时间</label></div>
+          <div class="ant-form-item-control">
+            <div class="ant-picker ant-picker-range">
+              <div class="ant-picker-input"><input placeholder="开始时间" value="" /></div>
+              <div class="ant-picker-range-separator">~</div>
+              <div class="ant-picker-input"><input placeholder="结束时间" value="" /></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+    const fields = scanFormFields();
+    expect(fields).toHaveLength(1);
+    expect(fields[0].type).toBe("daterange");
+    expect(fields[0].label).toContain("有效时间");
+  });
+
+  it("Mock 对 daterange 生成 `YYYY-MM-DD HH:mm:ss,YYYY-MM-DD HH:mm:ss`（分钟仅 00/30）", () => {
+    const field: FormFieldInfo = {
+      id: "field_range",
+      label: "有效时间",
+      type: "daterange",
+      required: true,
+    };
+    const data = generateMockData([field]);
+    const v = String(data[field.id] ?? "");
+    expect(v).toMatch(
+      /^\d{4}-\d{2}-\d{2} \d{2}:(00|30):\d{2},\d{4}-\d{2}-\d{2} \d{2}:(00|30):\d{2}$/,
+    );
+    const [a, b] = v.split(",");
+    expect(parseIsoDateParts(a)).not.toBeNull();
+    expect(parseIsoDateParts(b)).not.toBeNull();
+    expect(parseTimeParts(a)).not.toBeNull();
+    expect(parseTimeParts(b)).not.toBeNull();
+    expect(new Date(a.replace(" ", "T")) < new Date(b.replace(" ", "T"))).toBe(true);
+  });
+
+  it("fillFormFields：非 readOnly 直写路径保留时分秒（showTime placeholder）", async () => {
+    mountVisibleForm(`
+      <div class="ant-form-item">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label>有效时间</label></div>
+          <div class="ant-form-item-control">
+            <div class="ant-picker ant-picker-range">
+              <div class="ant-picker-input"><input placeholder="开始时间" value="" /></div>
+              <div class="ant-picker-range-separator">~</div>
+              <div class="ant-picker-input"><input placeholder="结束时间" value="" /></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+    const fields = scanFormFields();
+    const data = { [fields[0].id]: "2026-05-01 10:00:00,2026-05-02 17:30:00" };
+    await fillFormFields(fields, data);
+    const inputs = document.querySelectorAll<HTMLInputElement>(".ant-picker-input input");
+    expect(inputs[0].value).toBe("2026-05-01 10:00:00");
+    expect(inputs[1].value).toBe("2026-05-02 17:30:00");
+  });
+
+  it("fillFormFields：普通 RangePicker（无 showTime 提示）直写回退为纯日期，避免 `HH:mm:ss` 触发 rc-picker parse 失败", async () => {
+    mountVisibleForm(`
+      <div class="ant-form-item">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label>起止日期</label></div>
+          <div class="ant-form-item-control">
+            <div class="ant-picker ant-picker-range">
+              <div class="ant-picker-input"><input placeholder="开始日期" value="" /></div>
+              <div class="ant-picker-range-separator">~</div>
+              <div class="ant-picker-input"><input placeholder="结束日期" value="" /></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+    const fields = scanFormFields();
+    const data = { [fields[0].id]: "2026-05-01 10:00:00,2026-05-02 17:30:00" };
+    await fillFormFields(fields, data);
+    const inputs = document.querySelectorAll<HTMLInputElement>(".ant-picker-input input");
+    expect(inputs[0].value).toBe("2026-05-01");
+    expect(inputs[1].value).toBe("2026-05-02");
   });
 });
