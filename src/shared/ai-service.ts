@@ -1,6 +1,28 @@
 import type { AIConfig, FillData, FormFieldInfo } from './types';
 import { isMoonshotAnthropicStyleBase } from './moonshot-kimi';
 
+/** 鉴权 / API Key 无效等配置问题时向用户展示的文案 */
+export const AI_CALL_CONFIG_ERROR_HINT = 'AI 大模型调用失败，请检查你的AI配置';
+
+/**
+ * 是否为 API Key、鉴权类错误（与 generateWithAI 抛出的 message 格式及常见服务商响应体对齐）
+ */
+export function isAiAuthOrConfigFailureMessage(message: string): boolean {
+  if (/AI API 调用失败 \((401|403)\)/.test(message)) return true;
+  if (/authentication_error/i.test(message)) return true;
+  if (/api\s*key/i.test(message) && /invalid/i.test(message)) return true;
+  if (/Unauthorized/i.test(message)) return true;
+  return false;
+}
+
+/** 将底层错误转为用户可见的 Error（鉴权类统一为简短提示，详情由调用方打 console） */
+export function toUserFacingAiCallError(message: string): Error {
+  if (isAiAuthOrConfigFailureMessage(message)) {
+    return new Error(AI_CALL_CONFIG_ERROR_HINT);
+  }
+  return new Error(message);
+}
+
 /** 构造发给 AI 的 prompt */
 function buildPrompt(fields: FormFieldInfo[]): string {
   const fieldDescriptions = fields.map((f) => {

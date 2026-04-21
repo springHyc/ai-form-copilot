@@ -3,6 +3,7 @@ import { MessageType } from '@/shared/messages';
 import type { AIConfig, FillData, FormFieldInfo, Settings } from '@/shared/types';
 import { DEFAULT_SETTINGS } from '@/shared/types';
 import { MOONSHOT_CN_CHAT_BASE, moonshotCnBaseUrlForKimiModel } from '@/shared/moonshot-kimi';
+import { toUserFacingAiCallError } from '@/shared/ai-service';
 import { generateMockData } from '@/utils/mock-rules';
 
 import './style.css';
@@ -248,7 +249,7 @@ const App: React.FC = () => {
           return generateMockData(targetFields);
         }
         console.error('[AI Form Copilot] Popup -> Background GENERATE_DATA 失败:', response.error);
-        throw new Error(response.error);
+        throw toUserFacingAiCallError(msg);
       }
       return response.data || {};
     } catch (e) {
@@ -261,7 +262,7 @@ const App: React.FC = () => {
         return generateMockData(targetFields);
       }
       console.error('[AI Form Copilot] Popup -> Background GENERATE_DATA 异常:', e);
-      throw e;
+      throw toUserFacingAiCallError(msg);
     }
   }, [notifyAiRateLimitedOnce]);
 

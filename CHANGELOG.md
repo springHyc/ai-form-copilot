@@ -12,6 +12,10 @@
 - **Select 填充**：兼容 antd 4 / 5+ / `.rc-select-dropdown`；`simulatePointerClick`；下拉可见性修正（含 `opacity:''` 误判）；`[role="option"]`、`.ant-select-item-option-content`。Cascader / TreeSelect 打开方式一致。
 - **AI 生成**：select 未列出可选值时须返回 **`random`**。（其余 AI / 一键填充 / 校验 DOM 见 **0.1.1**。）
 
+### 改进
+
+- **Popup**：AI 鉴权失败（如 401、密钥无效）时提示「AI 大模型调用失败，请检查你的AI配置」，替代冗长英文报错。
+
 ### 测试
 
 - `src/__tests__/marketing-plan-failure-cases.test.ts`（Vitest + jsdom）：营销计划回归、失败案例 6（渠道代码）、失败案例 7（antd 4/5 Select 填充）、**截图「新增处理人」**（双异步 Select；`disabled` + placeholder；`fillInput` 跳过禁用框）、失败案例 8（`pattern` /「只能包含…」Mock）、**短链类红字 DOM**（`explain-connected` + `role="alert"` + 内层 `explain-error`；`aria-describedby` 指向表单项外 `#*_help`）、`data-ai-pattern` 扫描、antd 4 仅 `.ant-form-item-explain`。运行：`npm test`。
