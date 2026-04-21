@@ -449,6 +449,30 @@ describe("失败案例 6：渠道代码（企业金融）（input，须字母数
 });
 
 describe("失败案例 7：产品类型（antd 4 Select，须能点开并点选 menu-item）", () => {
+  it("扫描：Select 当前为「请选择...」时，currentValue / options 均应视为未填（避免一键填充跳过）", () => {
+    mountVisibleForm(`
+      <div class="ant-form-item">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label>用户类型</label></div>
+          <div class="ant-form-item-control">
+            <div class="ant-select ant-select-single ant-select-enabled">
+              <div class="ant-select-selection ant-select-selection--single">
+                <div class="ant-select-selection__rendered">
+                  <div class="ant-select-selection-selected-value" title="请选择用户类型">请选择用户类型</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+    const fields = scanFormFields();
+    expect(fields[0].type).toBe("select");
+    expect(fields[0].currentValue).toBeUndefined();
+    expect(fields[0].options).toBeUndefined();
+    expect(fieldNeedsFillInOneClickPass(fields[0])).toBe(true);
+  });
+
   it("fillSelect：antd 4 使用 .ant-select-selection + .ant-select-dropdown-menu-item", async () => {
     mountVisibleForm(`
       <div class="ant-form-item">
@@ -480,6 +504,50 @@ describe("失败案例 7：产品类型（antd 4 Select，须能点开并点选 
 
     const filled = await fillFormFields([], { field_0: "random" });
     expect(filled).toBe(1);
+  });
+
+  it("fillSelect：随机选择应跳过「请选择...」占位项（new-market 用户类型/运营商/通道）", async () => {
+    mountVisibleForm(`
+      <div class="ant-form-item">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label>用户类型</label></div>
+          <div class="ant-form-item-control">
+            <div class="ant-select ant-select-single ant-select-enabled">
+              <div class="ant-select-selection ant-select-selection--single" tabindex="0">
+                <div class="ant-select-selection__rendered">
+                  <div class="ant-select-selection-selected-value" title="请选择用户类型">请选择用户类型</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+
+    const dd = document.createElement("div");
+    dd.className = "ant-select-dropdown";
+    dd.innerHTML = `
+      <div>
+        <ul role="listbox" class="ant-select-dropdown-menu">
+          <li role="option" class="ant-select-dropdown-menu-item">请选择用户类型</li>
+          <li role="option" class="ant-select-dropdown-menu-item">未激活用户</li>
+          <li role="option" class="ant-select-dropdown-menu-item">待还款用户</li>
+        </ul>
+      </div>
+    `;
+    document.body.appendChild(dd);
+
+    const selected = document.querySelector<HTMLElement>(".ant-select-selection-selected-value")!;
+    dd.querySelectorAll<HTMLElement>(".ant-select-dropdown-menu-item").forEach((opt) => {
+      opt.addEventListener("click", () => {
+        selected.textContent = opt.textContent ?? "";
+      });
+    });
+
+    const filled = await fillFormFields([], { field_0: "random" });
+    expect(filled).toBe(1);
+    expect(selected.textContent?.trim()).not.toBe("请选择用户类型");
+    expect(["未激活用户", "待还款用户"]).toContain(selected.textContent?.trim());
   });
 
   it("fillSelect：antd 5+ 使用 .ant-select-selector + .ant-select-item-option（点 option-content）", async () => {
@@ -897,16 +965,16 @@ describe("失败案例 9：RangePicker + showTime（new-market 首页弹窗「�
     expect(new Date(a.replace(" ", "T")) < new Date(b.replace(" ", "T"))).toBe(true);
   });
 
-  it("fillFormFields：非 readOnly 直写路径保留时分秒（showTime placeholder）", async () => {
+  it("fillFormFields：showTime RangePicker 直写保留时分秒（home-popup `format='YYYY-MM-DD HH:mm:ss'` → input size=21）", async () => {
     mountVisibleForm(`
       <div class="ant-form-item">
         <div class="ant-row">
           <div class="ant-form-item-label"><label>有效时间</label></div>
           <div class="ant-form-item-control">
             <div class="ant-picker ant-picker-range">
-              <div class="ant-picker-input"><input placeholder="开始时间" value="" /></div>
+              <div class="ant-picker-input"><input size="21" placeholder="开始时间" value="" /></div>
               <div class="ant-picker-range-separator">~</div>
-              <div class="ant-picker-input"><input placeholder="结束时间" value="" /></div>
+              <div class="ant-picker-input"><input size="21" placeholder="结束时间" value="" /></div>
             </div>
           </div>
         </div>
@@ -920,16 +988,39 @@ describe("失败案例 9：RangePicker + showTime（new-market 首页弹窗「�
     expect(inputs[1].value).toBe("2026-05-02 17:30:00");
   });
 
-  it("fillFormFields：普通 RangePicker（无 showTime 提示）直写回退为纯日期，避免 `HH:mm:ss` 触发 rc-picker parse 失败", async () => {
+  it("fillFormFields：纯日期 RangePicker 但 placeholder 沿用「开始/结束时间」(buoy-deploy `format='YYYY-MM-DD'` → size=12) 直写应回退为纯日期", async () => {
+    mountVisibleForm(`
+      <div class="ant-form-item">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label>有效时间</label></div>
+          <div class="ant-form-item-control">
+            <div class="ant-picker ant-picker-range">
+              <div class="ant-picker-input"><input size="12" placeholder="开始时间" value="" /></div>
+              <div class="ant-picker-range-separator">~</div>
+              <div class="ant-picker-input"><input size="12" placeholder="结束时间" value="" /></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+    const fields = scanFormFields();
+    const data = { [fields[0].id]: "2026-05-01 10:00:00,2026-05-02 17:30:00" };
+    await fillFormFields(fields, data);
+    const inputs = document.querySelectorAll<HTMLInputElement>(".ant-picker-input input");
+    expect(inputs[0].value).toBe("2026-05-01");
+    expect(inputs[1].value).toBe("2026-05-02");
+  });
+
+  it("fillFormFields：普通 RangePicker（placeholder「开始日期/结束日期」）直写回退为纯日期", async () => {
     mountVisibleForm(`
       <div class="ant-form-item">
         <div class="ant-row">
           <div class="ant-form-item-label"><label>起止日期</label></div>
           <div class="ant-form-item-control">
             <div class="ant-picker ant-picker-range">
-              <div class="ant-picker-input"><input placeholder="开始日期" value="" /></div>
+              <div class="ant-picker-input"><input size="12" placeholder="开始日期" value="" /></div>
               <div class="ant-picker-range-separator">~</div>
-              <div class="ant-picker-input"><input placeholder="结束日期" value="" /></div>
+              <div class="ant-picker-input"><input size="12" placeholder="结束日期" value="" /></div>
             </div>
           </div>
         </div>

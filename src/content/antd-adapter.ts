@@ -175,6 +175,13 @@ function querySelectableSelectOptions(dropdown: HTMLElement): HTMLElement[] {
   );
 }
 
+/** Select 下拉里的「请选择... / 请先选择...」占位项，不应作为有效值随机命中 */
+function isSelectPlaceholderText(text: string): boolean {
+  const t = text.trim();
+  if (!t) return true;
+  return /^(请(先)?选择|请选择|请选|Select)/i.test(t);
+}
+
 /** 下拉层是否处于关闭/隐藏态（不要仅靠 offsetHeight，虚拟列表或 transform 下可能为 0） */
 function isSelectDropdownHiddenLayer(el: HTMLElement): boolean {
   if (el.style.display === 'none') return true;
@@ -214,6 +221,7 @@ async function fillSelect(container: HTMLElement, value: string, typeOccurrence 
 
         for (const option of optionNodes) {
           const text = option.textContent?.trim() ?? '';
+          if (isSelectPlaceholderText(text)) continue;
           if (text === value || text.includes(value) || value.includes(text)) {
             const target =
               option.querySelector<HTMLElement>('.ant-select-item-option-content') ?? option;
@@ -224,10 +232,14 @@ async function fillSelect(container: HTMLElement, value: string, typeOccurrence 
         }
 
         // 没有精确匹配，从可用选项中随机选一个
-        const available = querySelectableSelectOptions(dropdown);
-        if (available.length > 0) {
-          const randomIdx = Math.floor(Math.random() * available.length);
-          const picked = available[randomIdx];
+        const availableRaw = querySelectableSelectOptions(dropdown);
+        const available = availableRaw.filter(
+          (el) => !isSelectPlaceholderText(el.textContent?.trim() ?? ''),
+        );
+        const fallback = available.length > 0 ? available : availableRaw;
+        if (fallback.length > 0) {
+          const randomIdx = Math.floor(Math.random() * fallback.length);
+          const picked = fallback[randomIdx];
           const target =
             picked.querySelector<HTMLElement>('.ant-select-item-option-content') ?? picked;
           simulatePointerClick(target);
@@ -555,20 +567,30 @@ async function navigateRangeMonthToward(dropdown: HTMLElement, y: number, m: num
 }
 
 /**
- * 通过 placeholder 推断 RangePicker 是否带 showTime（`format='YYYY-MM-DD HH:mm:ss'` 这类）。
- * antd 不把 `format` 落到 DOM，`.ant-picker-suffix` 也始终是日历图标；
- * 业务通常会在 showTime 时自写 placeholder=['开始时间','结束时间'] 之类带「时」「HH:mm」等字样。
- * 注：这只是「直写 fallback」时的保底判断；dropdown 路径以是否出现 time-panel / OK 按钮为准，更可靠。
+ * 推断 RangePicker 是否带时分秒（`showTime` 或 `format` 含 HH:mm）。
+ * antd 把 `format` 不落 DOM，但 antd@5 的 rc-picker 会把 `<input size>` 设成约等于 `format.length` 的值，
+ *   - `format='YYYY-MM-DD'` (10) → `size=12`
+ *   - `format='YYYY-MM-DD HH:mm:ss'` (19) → `size=21`
+ * 所以优先用 `input.size` 区分（阈值 15，能稳定分开 10 与 19）。
+ *
+ * 注意：
+ *   - 不能靠 placeholder 含「时间」—— 这两份业务代码的 placeholder 都是 `['开始时间','结束时间']`，
+ *     一份是 showTime，一份是纯日期（new-market/buoy-deploy vs home-popup），靠「时间」会误判。
+ *   - 只有 `HH:mm / 时分秒` 这类明确的格式字样，或 input.value 已经含 `HH:mm`，才认为带时间。
+ *   - 这个判断只用于「直写 fallback」；dropdown 路径仍以是否出现 time-panel / OK 按钮为准，更可靠。
  */
 function rangePickerLikelyHasShowTime(picker: HTMLElement): boolean {
-  // 注意：JS `\b` 是 ASCII word boundary，中文字符间不成立 —— 不能写 `\b时间\b`
-  const TIME_HINT_RE = /时分秒|时\s*分|HH[:：]?mm|时间/i;
   const inputs = picker.querySelectorAll<HTMLInputElement>('.ant-picker-input input');
   for (const inp of inputs) {
-    const ph = inp.getAttribute('placeholder')?.trim() ?? '';
-    if (TIME_HINT_RE.test(ph)) return true;
+    const sizeAttr = inp.getAttribute('size');
+    const size = sizeAttr !== null ? Number(sizeAttr) : NaN;
+    if (Number.isFinite(size) && size >= 15) return true;
+
     const val = inp.value ?? '';
     if (/\d{2}:\d{2}/.test(val)) return true;
+
+    const ph = inp.getAttribute('placeholder')?.trim() ?? '';
+    if (/时分秒|时\s*分|HH[:：]?mm/i.test(ph)) return true;
   }
   return false;
 }
