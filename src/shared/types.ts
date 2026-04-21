@@ -38,6 +38,8 @@ export interface FormFieldInfo {
     maxLength?: number;
     min?: number;
     max?: number;
+    /** 来自 DOM input/textarea 的 HTML pattern（若框架下发），用于 Mock/AI 按正则字符集生成 */
+    pattern?: string;
   };
   /** 当前值（如果已有） */
   currentValue?: string;

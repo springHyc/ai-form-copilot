@@ -180,6 +180,120 @@ function combineFieldHints(field: FormFieldInfo): string {
   return [field.validationError, field.ruleHints, field.extra, field.placeholder].filter(Boolean).join(' ');
 }
 
+/** 去重并保持稳定顺序（便于单测） */
+function dedupeCharset(s: string): string {
+  return [...new Set([...s])].join('');
+}
+
+/**
+ * 将简单正则字符类展开为字面量字符表（不支持嵌套类、前瞻、Unicode 属性）。
+ * 含中文范围则放弃，交给其它规则。
+ */
+function expandRegexCharClassInner(inner: string): string | null {
+  if (/\\p{|\\u{|\\[dDsSwW]|\(\?/.test(inner)) return null;
+  const out: string[] = [];
+  for (let i = 0; i < inner.length; i++) {
+    const c = inner[i];
+    if (c === '\\' && i + 1 < inner.length) {
+      const e = inner[++i];
+      if (e === 'd') out.push(...'0123456789');
+      else if (e === 'n') out.push('\n');
+      else if (e === 't') out.push('\t');
+      else if (e === 'r') out.push('\r');
+      else out.push(e);
+      continue;
+    }
+    if (i + 2 < inner.length && inner[i + 1] === '-' && inner[i + 2] !== ']') {
+      const a = inner.charCodeAt(i);
+      const b = inner.charCodeAt(i + 2);
+      if (a <= b && b - a < 2000) {
+        for (let code = a; code <= b; code++) {
+          if (code >= 0x4e00 && code <= 0x9fff) return null;
+          out.push(String.fromCodePoint(code));
+        }
+        i += 2;
+        continue;
+      }
+    }
+    const code = c.codePointAt(0)!;
+    if (code >= 0x4e00 && code <= 0x9fff) return null;
+    out.push(c);
+  }
+  const flat = dedupeCharset(out.join(''));
+  return flat.length > 0 ? flat : null;
+}
+
+/**
+ * 解析常见 HTML pattern：`^[...]+$` / `^[...]*$` 等，得到允许字符集。
+ */
+function charsetFromHtmlPattern(pattern: string | undefined | null): string | null {
+  if (!pattern?.trim()) return null;
+  const p = pattern.trim();
+  let m =
+    p.match(/^\^\[([\s\S]+?)\]\+\$$/)
+    || p.match(/^\^\[([\s\S]+?)\]\*$$/)
+    || p.match(/^\^\[([\s\S]+?)\]\?$$/)
+    || p.match(/^\^\[([\s\S]+?)\]$$/);
+  if (!m) {
+    // 从 RegExp.source 或手写常见形态：仅字符类 + 量词，无 ^$
+    m = p.match(/^\[([^\]]+)\](?:\+|\*|\?)?$/);
+  }
+  if (!m) return null;
+  const inner = m[1];
+  if (/\[[\s\S]*\[/.test(inner) || /\|/.test(inner)) return null;
+  return expandRegexCharClassInner(inner);
+}
+
+/**
+ * 从「只能包含…」「仅允许包含…」等中文枚举句解析允许字符（与 antd rules.message 常见写法对齐）。
+ */
+function charsetFromRestrictionHints(hints: string): string | null {
+  const m = hints.match(/(?:只能包含|仅允许包含|只允许输入)([^。；;\r\n]+)/);
+  if (!m) return null;
+  let tail = m[1].trim().replace(/等[^。；;]*$/, '').replace(/不允许.*$/, '').replace(/不可.*$/, '');
+  tail = tail.replace(/\s+/g, '');
+  const raw = tail.split(/[,，、]/).map((x) => x.trim()).filter(Boolean);
+  const segs: string[] = [];
+  for (const x of raw) {
+    if (x.includes('及')) segs.push(...x.split('及').map((y) => y.trim()).filter(Boolean));
+    else segs.push(x);
+  }
+  let charset = '';
+  for (const seg of segs) {
+    if (!seg) continue;
+    if (/^字母$|^英文字母$/i.test(seg) || /^大小写字母$/i.test(seg)) {
+      charset += 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    } else if (/^数字$|^阿拉伯数字$/i.test(seg)) {
+      charset += '0123456789';
+    } else if (seg === '＆' || seg === '&') charset += '&';
+    else if (seg === '＝' || seg === '=') charset += '=';
+    else if (seg === '-' || seg === '－' || /^横线$|^连字符$|^减号$/i.test(seg)) charset += '-';
+    else if (seg === '_' || /^下划线$/i.test(seg)) charset += '_';
+    else if (seg === '.') charset += '.';
+    else if (seg === ' ') charset += ' ';
+    else if (/字母.*数字|数字.*字母/.test(seg) && seg.length <= 16) {
+      charset += 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    } else if (/[\u4e00-\u9fff]{2,}/.test(seg)) {
+      return null;
+    } else if (seg.length === 1 && seg.charCodeAt(0) < 0x80) {
+      charset += seg;
+    } else {
+      return null;
+    }
+  }
+  return charset.length > 0 ? dedupeCharset(charset) : null;
+}
+
+/** 在允许字符集内随机生成字符串 */
+function randomFromCharset(charset: string, maxLen: number): string {
+  const n = Math.max(2, Math.min(maxLen, 100));
+  const hi = Math.max(2, Math.min(32, n));
+  const len = randInt(Math.min(4, hi), hi);
+  let s = '';
+  for (let i = 0; i < len; i++) s += charset[randInt(0, charset.length - 1)];
+  return s.slice(0, n);
+}
+
 /** 是否要求「仅数字与英文字母」类输入 */
 function wantsAlphanumeric(hints: string): boolean {
   const h = hints.replace(/\s+/g, '');
@@ -320,8 +434,18 @@ export function generateMockData(fields: FormFieldInfo[]): FillData {
   for (const field of fields) {
     const hints = combineFieldHints(field);
 
-    // 文本类：优先满足「仅数字英文 + 最大长度」等 DOM 推断规则
+    // 文本类：优先 HTML pattern / 中文「只能包含…」枚举 → 字符集随机；再字母数字类 hint
     if (field.type === 'input' || field.type === 'textarea') {
+      const fromPattern = charsetFromHtmlPattern(field.constraints?.pattern);
+      const fromMsg = charsetFromRestrictionHints(hints);
+      const charset = (fromPattern && fromPattern.length > 0 ? fromPattern : null)
+        ?? (fromMsg && fromMsg.length > 0 ? fromMsg : null);
+      if (charset) {
+        const maxLen = field.constraints?.maxLength ?? inferMaxLenFromHints(hints) ?? 100;
+        const cap = Math.max(2, Math.min(maxLen, 100));
+        data[field.id] = randomFromCharset(charset, cap);
+        continue;
+      }
       if (wantsAlphanumeric(hints)) {
         const maxLen = field.constraints?.maxLength ?? inferMaxLenFromHints(hints);
         const len = maxLen !== undefined ? Math.max(1, Math.min(maxLen, 32)) : 8;

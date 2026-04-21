@@ -38,6 +38,7 @@ describe("一键填充字段筛选（与 Popup 逻辑对齐）", () => {
       id: "f1",
       label: "客群标签",
       type: "input",
+      required: true,
       currentValue: "中文",
       validationError: "客群标签不超过10个字符仅支持数字英文",
     };
@@ -217,7 +218,7 @@ describe("失败案例 4：执行时间（ProFormDateTimePicker → date + 带�
       required: true,
     };
     const data = generateMockData([field]);
-    const v = data[field.id]!;
+    const v = String(data[field.id] ?? "");
     expect(v).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
     expect(parseIsoDateParts(v)).toEqual({
       y: Number(v.slice(0, 4)),
@@ -515,9 +516,161 @@ describe("失败案例 5：客群标签（rule 提示仅数字英文 + 长度）
       constraints: { maxLength: 10 },
     };
     const data = generateMockData([field]);
-    const v = data[field.id]!;
+    const v = String(data[field.id] ?? "");
     expect(v).toMatch(/^[A-Z0-9]+$/);
     expect(v.length).toBeLessThanOrEqual(10);
+  });
+});
+
+describe("失败案例 8：参数拼接类（textarea，pattern 或「只能包含…」枚举）", () => {
+  it("constraints.pattern 为 ^[...]+$ 时 Mock 仅从字符类取样（不依赖 label）", () => {
+    const field: FormFieldInfo = {
+      id: "field_params",
+      label: "任意业务标签",
+      type: "textarea",
+      required: true,
+      constraints: { maxLength: 100, pattern: "^[a-zA-Z0-9&=]+$" },
+    };
+    const data = generateMockData([field]);
+    const v = String(data[field.id] ?? "");
+    expect(v).toMatch(/^[a-zA-Z0-9&=]+$/);
+    expect(v.length).toBeLessThanOrEqual(100);
+  });
+
+  it("无 pattern 时从校验/规则中文「只能包含字母、数字、&、=」解析字符集", () => {
+    const field: FormFieldInfo = {
+      id: "field_params",
+      label: "自定义字段",
+      type: "textarea",
+      required: true,
+      validationError: "参数拼接只能包含字母、数字、& 、=",
+      constraints: { maxLength: 100 },
+    };
+    const data = generateMockData([field]);
+    const v = String(data[field.id] ?? "");
+    expect(v).toMatch(/^[a-zA-Z0-9&=]+$/);
+    expect(v.length).toBeLessThanOrEqual(100);
+  });
+
+  it("pattern 为无 ^$ 的纯字符类（如 RegExp.source）时仍可解析", () => {
+    const field: FormFieldInfo = {
+      id: "field_p",
+      label: "x",
+      type: "textarea",
+      required: true,
+      constraints: { maxLength: 50, pattern: "[a-zA-Z0-9&=]+" },
+    };
+    const data = generateMockData([field]);
+    const v = String(data[field.id] ?? "");
+    expect(v).toMatch(/^[a-zA-Z0-9&=]+$/);
+  });
+});
+
+describe("扫描：antd explain-connected + role=alert + 内层 explain-error（短链 params 等）", () => {
+  it("flex 包裹下仍能读到 .ant-form-item-explain-error 文案", () => {
+    mountVisibleForm(`
+      <div class="ant-form-item ant-form-item-has-error">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label>参数拼接</label></div>
+          <div class="ant-form-item-control">
+            <textarea class="ant-input" aria-invalid="true" aria-describedby="params_help"></textarea>
+          </div>
+          <div style="display: flex; flex-wrap: nowrap;">
+            <div id="params_help" class="ant-form-item-explain ant-form-item-explain-connected" role="alert">
+              <div class="ant-form-item-explain-error">参数拼接只能包含字母、数字、&amp; 、=</div>
+            </div>
+            <div style="width: 0px; height: 24px;"></div>
+          </div>
+        </div>
+      </div>
+    `);
+    const fields = scanFormFields();
+    expect(fields[0].validationError).toContain("只能包含");
+    expect(fields[0].validationError).toContain("字母");
+  });
+
+  it("explain 区域仅在 document.getElementById(aria-describedby) 可命中时仍能解析", () => {
+    document.body.innerHTML = `
+      <div id="fixture-root">
+        <div class="ant-form-item ant-form-item-has-error">
+          <div class="ant-form-item-label"><label>参数拼接</label></div>
+          <div class="ant-form-item-control">
+            <textarea class="ant-input" aria-invalid="true" aria-describedby="params_help"></textarea>
+          </div>
+        </div>
+        <div style="display:flex">
+          <div id="params_help" class="ant-form-item-explain ant-form-item-explain-connected" role="alert">
+            <div class="ant-form-item-explain-error">参数拼接只能包含字母、数字、& 、=</div>
+          </div>
+        </div>
+      </div>
+    `;
+    Object.defineProperty(HTMLElement.prototype, "offsetWidth", { configurable: true, value: 320 });
+    Object.defineProperty(HTMLElement.prototype, "offsetHeight", { configurable: true, value: 40 });
+    const fields = scanFormFields();
+    expect(fields.length).toBeGreaterThanOrEqual(1);
+    const f = fields.find((x) => x.label.includes("参数")) ?? fields[0];
+    expect(f.validationError).toContain("只能包含");
+    document.body.innerHTML = "";
+    delete (HTMLElement.prototype as { offsetWidth?: number }).offsetWidth;
+    delete (HTMLElement.prototype as { offsetHeight?: number }).offsetHeight;
+  });
+});
+
+describe("扫描：antd 4 风格校验文案（仅有 .ant-form-item-explain）", () => {
+  it("has-error 且无 explain-error 子类时仍能读出 validationError（多轮纠偏依赖此项）", () => {
+    mountVisibleForm(`
+      <div class="ant-form-item ant-form-item-has-error">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label>参数拼接</label></div>
+          <div class="ant-form-item-control">
+            <textarea class="ant-input">bad</textarea>
+          </div>
+          <div class="ant-form-item-explain">
+            <div>参数拼接只能包含字母、数字、& 、=</div>
+          </div>
+        </div>
+      </div>
+    `);
+    const fields = scanFormFields();
+    expect(fields[0].validationError).toContain("只能包含");
+    expect(fields[0].validationError).toContain("字母");
+  });
+});
+
+describe("扫描：data-ai-pattern（rules 不落 DOM 时的通用挂载点）", () => {
+  it("从 .ant-form-item 读取 data-ai-pattern 并入 constraints.pattern", () => {
+    mountVisibleForm(`
+      <div class="ant-form-item" data-ai-pattern="^[a-zA-Z0-9&=]+$">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label>自定义</label></div>
+          <div class="ant-form-item-control">
+            <textarea class="ant-input" maxlength="100"></textarea>
+          </div>
+        </div>
+      </div>
+    `);
+    const fields = scanFormFields();
+    expect(fields[0].constraints?.pattern).toBe("^[a-zA-Z0-9&=]+$");
+  });
+});
+
+describe("扫描：textarea 的 HTML pattern", () => {
+  it("写入 constraints.pattern（与 Mock 通用字符集逻辑配套）", () => {
+    mountVisibleForm(`
+      <div class="ant-form-item">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label>query</label></div>
+          <div class="ant-form-item-control">
+            <textarea class="ant-input" maxlength="100" pattern="^[a-zA-Z0-9&=]+$"></textarea>
+          </div>
+        </div>
+      </div>
+    `);
+    const fields = scanFormFields();
+    expect(fields[0].type).toBe("textarea");
+    expect(fields[0].constraints?.pattern).toBe("^[a-zA-Z0-9&=]+$");
+    expect(fields[0].constraints?.maxLength).toBe(100);
   });
 });
 

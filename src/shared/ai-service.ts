@@ -14,6 +14,7 @@ function buildPrompt(fields: FormFieldInfo[]): string {
     if (f.constraints?.maxLength) parts.push(`最大长度: ${f.constraints.maxLength}`);
     if (f.constraints?.min !== undefined) parts.push(`最小值: ${f.constraints.min}`);
     if (f.constraints?.max !== undefined) parts.push(`最大值: ${f.constraints.max}`);
+    if (f.constraints?.pattern) parts.push(`HTML pattern(正则): ${f.constraints.pattern}`);
     return parts.join(' | ');
   });
 
@@ -26,7 +27,7 @@ ${fieldDescriptions.join('\n')}
 1. 根据字段标签语义生成合理数据（如"姓名"→中文姓名，"手机号"→11位手机号，"邮箱"→邮箱格式）
 2. 对有可选值的字段（select/radio），必须从给定的可选值中选择一个
 3. 必填字段必须有值
-4. 遵守字段约束（最大长度、最小/最大值等）；若存在「校验/规则摘要(ruleHints)」或「表单项说明(extra)」，请结合其理解校验要求（如：仅数字英文、**「请输入字母或数字」= 只能含英文字母与数字无中文**、最大字符数、范围、单位、小数位数），生成**能通过校验**的值
+4. 遵守字段约束（最大长度、最小/最大值等）；若字段描述中含 **HTML pattern(正则)**，则填充值必须**整串匹配**该正则（仅使用 pattern 允许的字符，不要臆造未出现在字符类中的符号）；若存在「校验/规则摘要(ruleHints)」或「表单项说明(extra)」，请结合其理解校验要求（如：仅数字英文、「请输入字母或数字」= 只能含英文字母与数字无中文、最大字符数、范围、单位、小数位数），生成**能通过校验**的值；若错误/规则中出现「只能包含…」且枚举了允许字符（如字母、数字、&、=），则值**只能**由这些字符组成，**无中文、无未列出的符号**
 5. 日期字段使用 YYYY-MM-DD 格式
 6. 日期范围（类型为 daterange，如「开始-结束时间」）必须返回英文逗号分隔的两个日期：YYYY-MM-DD,YYYY-MM-DD（开始在前、结束在后，结束日晚于开始日）
 7. checkbox 类型如果有多个可选值，用逗号分隔；单个 checkbox 返回 "true"
