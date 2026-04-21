@@ -1,4 +1,5 @@
 import type { FieldType, FillData, FormFieldInfo } from '@/shared/types';
+import { enumerateControlsInFormItem, isTimeOnlyPickerEl } from './scanner';
 
 /**
  * 触发 React 受控组件的值变更。
@@ -22,6 +23,26 @@ function setNativeValue(element: HTMLInputElement | HTMLTextAreaElement, value: 
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** 判断元素是否可见（供 listInFormItem / 填充前筛选） */
+function isVisible(el: HTMLElement): boolean {
+  const s = getComputedStyle(el);
+  if (s.display === 'none' || s.visibility === 'hidden' || s.opacity === '0') return false;
+  if (el.offsetWidth > 0 || el.offsetHeight > 0) return true;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 || r.height > 0;
+}
+
+/** 与 scanner.enumerateControlsInFormItem 同一控件范围，便于按序号填充 */
+function formItemControlRoot(container: HTMLElement): HTMLElement {
+  return container.querySelector<HTMLElement>('.ant-form-item-control') ?? container;
+}
+
+function listInFormItem(container: HTMLElement, selector: string): HTMLElement[] {
+  return Array.from(formItemControlRoot(container).querySelectorAll<HTMLElement>(selector)).filter(isVisible);
+}
+
+type FillHandler = (container: HTMLElement, value: string, typeOccurrence?: number) => Promise<boolean>;
 
 function simulateClick(element: HTMLElement) {
   element.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
@@ -56,14 +77,40 @@ function simulatePointerClick(element: HTMLElement) {
   if (typeof element.click === 'function') element.click();
 }
 
-async function fillInput(container: HTMLElement, value: string) {
-  const input = container.querySelector<HTMLInputElement | HTMLTextAreaElement>(
-    'input.ant-input, textarea.ant-input, .ant-input-affix-wrapper input',
+async function fillPlainInput(container: HTMLElement, value: string, typeOccurrence = 0): Promise<boolean> {
+  const root = formItemControlRoot(container);
+  const affix = Array.from(root.querySelectorAll<HTMLElement>('.ant-input-affix-wrapper')).filter(isVisible);
+  const loose = Array.from(root.querySelectorAll<HTMLInputElement>('input.ant-input')).filter(
+    (inp) =>
+      isVisible(inp)
+      && !inp.closest('.ant-picker')
+      && !inp.closest('.ant-input-number')
+      && !inp.closest('.ant-select')
+      && !inp.closest('.ant-input-affix-wrapper'),
   );
+  const targets: HTMLElement[] = [...affix, ...loose];
+  const target = targets[typeOccurrence];
+  if (!target) return false;
+  const input =
+    target.classList.contains('ant-input-affix-wrapper') ?
+      target.querySelector<HTMLInputElement>('input')
+    : (target as HTMLInputElement);
   if (!input || input.disabled || input.readOnly) return false;
   input.focus();
   setNativeValue(input, value);
   input.blur();
+  return true;
+}
+
+async function fillTextareaControl(container: HTMLElement, value: string, typeOccurrence = 0): Promise<boolean> {
+  const list = Array.from(
+    formItemControlRoot(container).querySelectorAll<HTMLTextAreaElement>('textarea.ant-input, textarea'),
+  ).filter(isVisible);
+  const ta = list[typeOccurrence];
+  if (!ta || ta.disabled || ta.readOnly) return false;
+  ta.focus();
+  setNativeValue(ta, value);
+  ta.blur();
   return true;
 }
 
@@ -76,8 +123,10 @@ function normalizeNumericInputString(raw: string): string {
   return String(n);
 }
 
-async function fillNumber(container: HTMLElement, value: string) {
-  const input = container.querySelector<HTMLInputElement>('.ant-input-number-input');
+async function fillNumber(container: HTMLElement, value: string, typeOccurrence = 0) {
+  const roots = listInFormItem(container, '.ant-input-number').filter((el) => !el.classList.contains('ant-input-number-disabled'));
+  const numRoot = roots[typeOccurrence];
+  const input = numRoot?.querySelector<HTMLInputElement>('.ant-input-number-input');
   if (!input || input.disabled || input.readOnly) return false;
   const numeric = normalizeNumericInputString(value);
   input.focus();
@@ -143,9 +192,10 @@ function collectSelectDropdownRoots(): HTMLElement[] {
   return Array.from(roots).reverse();
 }
 
-async function fillSelect(container: HTMLElement, value: string) {
-  const selectEl = container.querySelector<HTMLElement>('.ant-select');
-  if (!selectEl || selectEl.classList.contains('ant-select-disabled')) return false;
+async function fillSelect(container: HTMLElement, value: string, typeOccurrence = 0) {
+  const list = listInFormItem(container, '.ant-select').filter((el) => !el.classList.contains('ant-select-disabled'));
+  const selectEl = list[typeOccurrence];
+  if (!selectEl) return false;
 
   const openAndPick = async (): Promise<boolean> => {
     const trigger = getSelectTriggerEl(selectEl) ?? selectEl;
@@ -201,8 +251,9 @@ async function fillSelect(container: HTMLElement, value: string) {
   return false;
 }
 
-async function fillRadio(container: HTMLElement, value: string) {
-  const group = container.querySelector<HTMLElement>('.ant-radio-group');
+async function fillRadio(container: HTMLElement, value: string, typeOccurrence = 0) {
+  const groups = listInFormItem(container, '.ant-radio-group');
+  const group = groups[typeOccurrence];
   if (!group) return false;
 
   const radios = group.querySelectorAll<HTMLElement>('.ant-radio-wrapper');
@@ -233,29 +284,36 @@ async function fillRadio(container: HTMLElement, value: string) {
   return false;
 }
 
-async function fillCheckbox(container: HTMLElement, value: string) {
+async function fillCheckbox(container: HTMLElement, value: string, typeOccurrence = 0) {
   const values = typeof value === 'string' ? value.split(',').map((v) => v.trim()) : [String(value)];
 
-  const single = container.querySelector<HTMLElement>(
-    '.ant-checkbox-wrapper:not(.ant-checkbox-group .ant-checkbox-wrapper)',
+  const root = formItemControlRoot(container);
+  const groups = Array.from(root.querySelectorAll<HTMLElement>('.ant-checkbox-group')).filter(isVisible);
+  const singles = Array.from(root.querySelectorAll<HTMLElement>('.ant-checkbox-wrapper')).filter(
+    (w) => isVisible(w) && !w.closest('.ant-checkbox-group'),
   );
-  if (single && !container.querySelector('.ant-checkbox-group')) {
-    const input = single.querySelector<HTMLElement>('input[type="checkbox"]');
-    const isChecked = single.classList.contains('ant-checkbox-wrapper-checked');
-    if (value === 'true' && !isChecked && input) simulateClick(input);
+  const targets = [...groups, ...singles];
+  const target = targets[typeOccurrence];
+  if (!target) return false;
+
+  if (target.classList.contains('ant-checkbox-group')) {
+    const checkboxes = target.querySelectorAll<HTMLElement>('.ant-checkbox-wrapper');
+    for (const checkbox of checkboxes) {
+      const text = checkbox.textContent?.trim() ?? '';
+      const shouldCheck = values.some((v) => text === v || text.includes(v));
+      const isChecked = checkbox.classList.contains('ant-checkbox-wrapper-checked');
+      if (shouldCheck && !isChecked) {
+        const inp = checkbox.querySelector<HTMLElement>('input[type="checkbox"]');
+        if (inp) simulateClick(inp);
+      }
+    }
     return true;
   }
 
-  const checkboxes = container.querySelectorAll<HTMLElement>('.ant-checkbox-wrapper');
-  for (const checkbox of checkboxes) {
-    const text = checkbox.textContent?.trim() ?? '';
-    const shouldCheck = values.some((v) => text === v || text.includes(v));
-    const isChecked = checkbox.classList.contains('ant-checkbox-wrapper-checked');
-    if (shouldCheck && !isChecked) {
-      const input = checkbox.querySelector<HTMLElement>('input[type="checkbox"]');
-      if (input) simulateClick(input);
-    }
-  }
+  const single = target;
+  const input = single.querySelector<HTMLElement>('input[type="checkbox"]');
+  const isChecked = single.classList.contains('ant-checkbox-wrapper-checked');
+  if (value === 'true' && !isChecked && input) simulateClick(input);
   return true;
 }
 
@@ -497,11 +555,12 @@ async function navigateRangeMonthToward(dropdown: HTMLElement, y: number, m: num
 }
 
 /** Ant Design RangePicker / ProFormDateRangePicker：同一弹层内先后点选开始、结束，不能分两次点 input 打断流程 */
-async function fillDateRange(container: HTMLElement, value: string): Promise<boolean> {
-  const picker =
-    container.querySelector<HTMLElement>('.ant-picker.ant-picker-range') ??
-    container.querySelector<HTMLElement>('.ant-picker-range');
-  if (!picker || picker.classList.contains('ant-picker-disabled')) return false;
+async function fillDateRange(container: HTMLElement, value: string, typeOccurrence = 0): Promise<boolean> {
+  const list = listInFormItem(container, '.ant-picker.ant-picker-range, .ant-picker-range').filter(
+    (el) => !el.classList.contains('ant-picker-disabled'),
+  );
+  const picker = list[typeOccurrence];
+  if (!picker) return false;
 
   const rangeParts = splitDateRangeValue(value);
   if (!rangeParts) return false;
@@ -558,9 +617,12 @@ async function fillDateRange(container: HTMLElement, value: string): Promise<boo
   return true;
 }
 
-async function fillSingleDate(container: HTMLElement, value: string): Promise<boolean> {
-  const picker = container.querySelector<HTMLElement>('.ant-picker:not(.ant-picker-range)');
-  if (!picker || picker.classList.contains('ant-picker-disabled')) return false;
+async function fillSingleDate(container: HTMLElement, value: string, typeOccurrence = 0): Promise<boolean> {
+  const pickers = listInFormItem(container, '.ant-picker:not(.ant-picker-range)').filter(
+    (el) => !isTimeOnlyPickerEl(el) && !el.classList.contains('ant-picker-disabled'),
+  );
+  const picker = pickers[typeOccurrence];
+  if (!picker) return false;
 
   const input = picker.querySelector<HTMLInputElement>('.ant-picker-input input, input');
   if (!input || input.disabled) return false;
@@ -615,18 +677,56 @@ async function fillSingleDate(container: HTMLElement, value: string): Promise<bo
   return true;
 }
 
-async function fillDate(container: HTMLElement, value: string) {
-  const rangeRoot =
-    container.querySelector<HTMLElement>('.ant-picker.ant-picker-range') ??
-    container.querySelector<HTMLElement>('.ant-picker-range');
-  if (rangeRoot) return fillDateRange(container, value);
-  return fillSingleDate(container, value);
+async function fillDateOnly(container: HTMLElement, value: string, typeOccurrence = 0): Promise<boolean> {
+  return fillSingleDate(container, value, typeOccurrence);
+}
+
+/** ProFormTimePicker / antd TimePicker：仅时刻；与 fillSingleDate（含日历日）区分 */
+async function fillTimePicker(container: HTMLElement, value: string, typeOccurrence = 0): Promise<boolean> {
+  const pickers = listInFormItem(container, '.ant-picker:not(.ant-picker-range)').filter(
+    (el) => isTimeOnlyPickerEl(el) && !el.classList.contains('ant-picker-disabled'),
+  );
+  const picker = pickers[typeOccurrence];
+  if (!picker) return false;
+
+  const input = picker.querySelector<HTMLInputElement>('.ant-picker-input input, input');
+  if (!input || input.disabled) return false;
+
+  const trimmed = value.trim();
+  if (!parseTimeParts(trimmed)) return false;
+
+  simulatePointerClick(input);
+  await sleep(400);
+  let dropdown = getVisiblePickerDropdown();
+  if (!dropdown) {
+    simulatePointerClick(picker);
+    await sleep(400);
+    dropdown = getVisiblePickerDropdown();
+  }
+
+  if (dropdown) {
+    await tryPickTimeInDropdown(dropdown, `2000-01-01 ${trimmed}`);
+    await confirmPickerIfNeeded(dropdown);
+    document.body.click();
+    await sleep(100);
+    if (input.value?.trim()) return true;
+  }
+
+  input.focus();
+  setNativeValue(input, '');
+  await sleep(40);
+  setNativeValue(input, trimmed);
+  input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, keyCode: 13 }));
+  document.body.click();
+  await sleep(80);
+  return true;
 }
 
 /** 填充 Cascader 级联选择：逐级展开面板并选择 */
-async function fillCascader(container: HTMLElement, _value: string) {
-  const cascaderEl = container.querySelector<HTMLElement>('.ant-cascader, .ant-select');
-  if (!cascaderEl || cascaderEl.classList.contains('ant-select-disabled')) return false;
+async function fillCascader(container: HTMLElement, _value: string, typeOccurrence = 0) {
+  const list = listInFormItem(container, '.ant-cascader').filter((el) => !el.classList.contains('ant-select-disabled'));
+  const cascaderEl = list[typeOccurrence];
+  if (!cascaderEl) return false;
 
   const trigger = getSelectTriggerEl(cascaderEl) ?? cascaderEl;
   trigger.focus();
@@ -709,9 +809,10 @@ async function fillCascader(container: HTMLElement, _value: string) {
 }
 
 /** 填充 TreeSelect 树选择：展开下拉后随机选择一个节点 */
-async function fillTreeSelect(container: HTMLElement, _value: string) {
-  const treeSelectEl = container.querySelector<HTMLElement>('.ant-tree-select, .ant-select');
-  if (!treeSelectEl || treeSelectEl.classList.contains('ant-select-disabled')) return false;
+async function fillTreeSelect(container: HTMLElement, _value: string, typeOccurrence = 0) {
+  const list = listInFormItem(container, '.ant-tree-select').filter((el) => !el.classList.contains('ant-select-disabled'));
+  const treeSelectEl = list[typeOccurrence];
+  if (!treeSelectEl) return false;
 
   const trigger = getSelectTriggerEl(treeSelectEl) ?? treeSelectEl;
   trigger.focus();
@@ -764,9 +865,10 @@ async function fillTreeSelect(container: HTMLElement, _value: string) {
 }
 
 /** 填充 Switch 开关：根据值切换开关状态 */
-async function fillSwitch(container: HTMLElement, value: string) {
-  const switchEl = container.querySelector<HTMLElement>('.ant-switch');
-  if (!switchEl || switchEl.classList.contains('ant-switch-disabled')) return false;
+async function fillSwitch(container: HTMLElement, value: string, typeOccurrence = 0) {
+  const list = listInFormItem(container, '.ant-switch').filter((el) => !el.classList.contains('ant-switch-disabled'));
+  const switchEl = list[typeOccurrence];
+  if (!switchEl) return false;
 
   const isChecked = switchEl.classList.contains('ant-switch-checked');
   const shouldCheck = value === 'true' || value === '1' || value === 'on';
@@ -779,8 +881,9 @@ async function fillSwitch(container: HTMLElement, value: string) {
 }
 
 /** 填充 Transfer 穿梭框：从左侧随机勾选若干项，然后点击右移按钮 */
-async function fillTransfer(container: HTMLElement, _value: string) {
-  const transferEl = container.querySelector<HTMLElement>('.ant-transfer');
+async function fillTransfer(container: HTMLElement, _value: string, typeOccurrence = 0) {
+  const list = listInFormItem(container, '.ant-transfer');
+  const transferEl = list[typeOccurrence];
   if (!transferEl) return false;
 
   // 左侧列表（源）
@@ -821,15 +924,16 @@ async function fillTransfer(container: HTMLElement, _value: string) {
   return true;
 }
 
-const FILL_HANDLERS: Record<FieldType, (container: HTMLElement, value: string) => Promise<boolean>> = {
-  input: fillInput,
-  textarea: fillInput,
+const FILL_HANDLERS: Record<FieldType, FillHandler> = {
+  input: fillPlainInput,
+  textarea: fillTextareaControl,
   number: fillNumber,
   select: fillSelect,
   radio: fillRadio,
   checkbox: fillCheckbox,
-  date: fillDate,
-  daterange: fillDate,
+  time: fillTimePicker,
+  date: fillDateOnly,
+  daterange: fillDateRange,
   cascader: fillCascader,
   treeselect: fillTreeSelect,
   switch: fillSwitch,
@@ -837,54 +941,10 @@ const FILL_HANDLERS: Record<FieldType, (container: HTMLElement, value: string) =
   custom: async () => false,
 };
 
-/** 检测字段类型（与 scanner 保持一致） */
-function detectFieldType(container: HTMLElement): FieldType | null {
-  const selectors: [string, FieldType][] = [
-    ['.ant-cascader', 'cascader'], ['.ant-tree-select', 'treeselect'],
-    ['.ant-transfer', 'transfer'], ['.ant-switch', 'switch'],
-    ['.ant-select', 'select'], ['.ant-radio-group', 'radio'],
-    ['.ant-checkbox-group', 'checkbox'], ['.ant-checkbox-wrapper', 'checkbox'],
-    ['.ant-picker-range', 'daterange'], ['.ant-picker', 'date'],
-    ['.ant-input-number', 'number'],
-    ['textarea.ant-input', 'textarea'], ['input.ant-input', 'input'],
-    ['.ant-input-affix-wrapper', 'input'],
-    ['input[type="text"]', 'input'], ['input[type="number"]', 'number'],
-    ['input[type="email"]', 'input'], ['input[type="tel"]', 'input'],
-    ['input[type="password"]', 'input'],
-  ];
-  for (const [sel, type] of selectors) {
-    if (container.querySelector(sel)) return type;
-  }
-  return null;
-}
-
-/** 判断元素是否可见 */
-function isVisible(el: HTMLElement): boolean {
-  const s = getComputedStyle(el);
-  if (s.display === 'none' || s.visibility === 'hidden' || s.opacity === '0') return false;
-  if (el.offsetWidth > 0 || el.offsetHeight > 0) return true;
-  const r = el.getBoundingClientRect();
-  return r.width > 0 || r.height > 0;
-}
-
 /** 收集顶层 form-item，过滤嵌套项（与 scanner 逻辑一致） */
 function collectTopLevelFormItems(): HTMLElement[] {
   const all = Array.from(document.querySelectorAll<HTMLElement>('.ant-form-item'));
   return all.filter((item) => !item.parentElement?.closest('.ant-form-item'));
-}
-
-/** 同一 form-item 里可能存在多个可填字段（如 radio + ProFormDigit noStyle） */
-function collectFillTargets(container: HTMLElement): FieldType[] {
-  const targets: FieldType[] = [];
-  const primary = detectFieldType(container);
-  if (!primary) return targets;
-  targets.push(primary);
-
-  if (primary !== 'number' && container.querySelector('.ant-input-number')) {
-    targets.push('number');
-  }
-
-  return targets;
 }
 
 /**
@@ -898,21 +958,23 @@ export async function fillFormFields(_fields: FormFieldInfo[], data: FillData): 
 
   for (const container of allItems) {
     if (!isVisible(container)) continue;
-    const targets = collectFillTargets(container);
-    if (targets.length === 0) continue;
+    const controls = enumerateControlsInFormItem(container);
+    if (controls.length === 0) continue;
 
-    for (const type of targets) {
+    for (let i = 0; i < controls.length; i++) {
       const fieldId = `field_${fieldIndex}`;
       fieldIndex++;
 
       const value = data[fieldId];
       if (value === undefined || value === null) continue;
 
+      const type = controls[i].type;
+      const typeOcc = controls.slice(0, i).filter((c) => c.type === type).length;
       const handler = FILL_HANDLERS[type];
       if (!handler) continue;
 
       try {
-        const success = await handler(container, String(value));
+        const success = await handler(container, String(value), typeOcc);
         if (success) filledCount++;
         await sleep(150);
       } catch (e) {

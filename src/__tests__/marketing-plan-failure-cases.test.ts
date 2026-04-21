@@ -132,10 +132,62 @@ describe("失败案例 2：进入计划的名单数量（Radio + 同项内 ProFo
     const fields = scanFormFields();
     expect(fields.map((f) => `${f.label}:${f.type}`)).toEqual([
       "进入计划的名单数量:radio",
-      "进入计划的名单数量（数值）:number",
+      "进入计划的名单数量（2）:number",
     ]);
     const data = generateMockData(fields);
     expect(data[fields[1].id]).toMatch(/^\d+(\.\d+)?$/);
+  });
+
+  it("ProFormDigit 作为 Radio.Group 内部条件渲染子节点时也应被枚举（jarvis 解除隔离规则）", () => {
+    // 对齐 @jarvis/src/pages/marketPlanManage/createMarketPlan/FirstStep.tsx:569-668 的真实 DOM：
+    // Radio.Group 渲染成 .ant-radio-group，条件 ProFormDependency 产出的 ProFormDigit 落在 group 内部
+    mountVisibleForm(`
+      <div class="ant-form-item">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label>解除隔离规则</label></div>
+          <div class="ant-form-item-control">
+            <div class="ant-radio-group">
+              <div>
+                <label class="ant-radio-wrapper ant-radio-wrapper-checked">
+                  <span class="ant-radio"><input type="radio" /></span>
+                  <span>满足任一条件解除隔离:</span>
+                </label>
+                <span>1 达成目标计划; 2 计划终止后</span>
+                <div class="ant-input-number">
+                  <input class="ant-input-number-input" type="text" min="1" value="" placeholder="请输入" />
+                </div>
+                <span>天； 3 计划最后一频次结束后</span>
+                <div class="ant-input-number">
+                  <input class="ant-input-number-input" type="text" min="1" value="" placeholder="请输入" />
+                </div>
+                <span>天</span>
+              </div>
+              <div>
+                <label class="ant-radio-wrapper">
+                  <span class="ant-radio"><input type="radio" /></span>
+                  <span>从用户进入计划开始，统一在</span>
+                </label>
+              </div>
+              <div>
+                <label class="ant-radio-wrapper">
+                  <span class="ant-radio"><input type="radio" /></span>
+                  <span>统一在</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+    const fields = scanFormFields();
+    expect(fields.map((f) => `${f.label}:${f.type}`)).toEqual([
+      "解除隔离规则:radio",
+      "解除隔离规则（2）:number",
+      "解除隔离规则（3）:number",
+    ]);
+    expect(fields[0].currentValue).toContain("满足任一条件");
+    expect(fields[1].currentValue).toBeUndefined();
+    expect(fields[2].currentValue).toBeUndefined();
   });
 });
 
@@ -281,6 +333,54 @@ describe("失败案例 4：执行时间（ProFormDateTimePicker → date + 带�
     const data = generateMockData([field]);
     const v = String(data[field.id] ?? "");
     expect(v).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+  });
+});
+
+describe("失败案例 5：执行时间（jarvis 同项 Select + ProFormTimePicker）", () => {
+  it("扫描为 select + time 两个字段（不因 .ant-select 优先而漏掉 TimePicker）", () => {
+    mountVisibleForm(`
+      <div class="ant-form-item">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label title="执行时间">执行时间</label></div>
+          <div class="ant-form-item-control">
+            <div class="ant-form-item-control-input-content">
+              <div class="ant-select ant-select-single">
+                <div class="ant-select-selector">
+                  <span class="ant-select-selection-item" title="每天">每天</span>
+                </div>
+              </div>
+              <span style="padding:0 4px"> </span>
+              <div class="ant-picker">
+                <div class="ant-picker-input">
+                  <input id="first_period_execTime" readonly placeholder="请选择时间" value="" />
+                </div>
+                <span class="ant-picker-suffix">
+                  <span role="img" aria-label="clock-circle" class="anticon anticon-clock-circle"></span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+    const fields = scanFormFields();
+    expect(fields.length).toBe(2);
+    expect(fields[0].type).toBe("select");
+    expect(fields[1].type).toBe("time");
+    expect(fields[1].label).toBe("执行时间（2）");
+  });
+
+  it("Mock 对 type=time 生成 HH:mm:ss", () => {
+    const field: FormFieldInfo = {
+      id: "field_t",
+      label: "执行时间（2）",
+      type: "time",
+      required: true,
+    };
+    const data = generateMockData([field]);
+    const v = String(data[field.id] ?? "");
+    expect(v).toMatch(/^\d{2}:\d{2}:\d{2}$/);
+    expect(parseTimeParts(v)).not.toBeNull();
   });
 });
 

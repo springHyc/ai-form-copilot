@@ -20,7 +20,7 @@ async function executeScanInPage(): Promise<{ fields: any[] }> {
   const results = await chrome.scripting.executeScript({
     target: { tabId: tab.id! },
     func: () => {
-      type FieldType = 'input' | 'textarea' | 'select' | 'radio' | 'checkbox' | 'date' | 'daterange' | 'number' | 'cascader' | 'treeselect' | 'switch' | 'transfer' | 'custom';
+      type FieldType = 'input' | 'textarea' | 'select' | 'radio' | 'checkbox' | 'time' | 'date' | 'daterange' | 'number' | 'cascader' | 'treeselect' | 'switch' | 'transfer' | 'custom';
 
       function detectFieldType(c: HTMLElement): { type: FieldType; element: HTMLElement } | null {
         const map: [string, FieldType][] = [
@@ -161,6 +161,29 @@ async function executeScanInPage(): Promise<{ fields: any[] }> {
           options: options.length > 0 ? options : undefined, constraints, currentValue,
         });
         idx++;
+
+        // 与 content scanner 对齐：Select + ProFormTimePicker 同 Form.Item
+        if (type === 'select') {
+          const picker = container.querySelector<HTMLElement>('.ant-form-item-control .ant-picker:not(.ant-picker-range)');
+          if (picker && !picker.closest('.ant-select')) {
+            const tInp = picker.querySelector<HTMLInputElement>('.ant-picker-input input');
+            const ph = tInp?.getAttribute('placeholder')?.trim() ?? '';
+            const isTime = /请选择时间|时分秒|HH:mm/i.test(ph)
+              || Boolean(picker.querySelector('.anticon-clock-circle') && !picker.querySelector('.anticon-calendar'));
+            if (isTime) {
+              fields.push({
+                id: `field_${idx}`,
+                label: `${label || placeholder || `未命名字段_${idx}`}（时间）`,
+                type: 'time',
+                required: isRequired(container),
+                placeholder: tInp?.getAttribute('placeholder') ?? undefined,
+                extra,
+                currentValue: tInp?.value?.trim() || undefined,
+              });
+              idx++;
+            }
+          }
+        }
       });
 
       console.log(`[AI Form Copilot] 扫描到 ${fields.length} 个字段:`,

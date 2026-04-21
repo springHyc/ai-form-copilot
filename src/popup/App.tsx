@@ -48,7 +48,7 @@ function useToast() {
 
 const TYPE_COLORS: Record<string, string> = {
   input: 'blue', textarea: 'cyan', select: 'purple',
-  radio: 'orange', checkbox: 'green', date: 'magenta',
+  radio: 'orange', checkbox: 'green', time: 'volcano', date: 'magenta',
   daterange: 'magenta', number: 'gold', cascader: 'geekblue',
   treeselect: 'volcano', switch: 'lime', transfer: 'processing',
   custom: 'default',

@@ -1,39 +1,115 @@
 import type { FieldType, FormFieldInfo } from "@/shared/types";
 
-/** 从 Ant Design 表单项容器中检测字段类型 */
-function detectFieldType(
-  container: HTMLElement,
-): { type: FieldType; element: HTMLElement } | null {
-  // 按优先级排列：特殊组件在前，通用组件在后，避免误判
-  // 兼容 antd 原生和 @ant-design/pro-components（底层 DOM 结构一致）
-  const selectors: [string, FieldType][] = [
-    [".ant-cascader", "cascader"],
-    [".ant-tree-select", "treeselect"],
-    [".ant-transfer", "transfer"],
-    [".ant-switch", "switch"],
-    [".ant-select", "select"],
-    [".ant-radio-group", "radio"],
-    [".ant-checkbox-group", "checkbox"],
-    [".ant-checkbox-wrapper", "checkbox"],
-    [".ant-picker-range", "daterange"],
-    [".ant-picker", "date"],
-    [".ant-input-number", "number"],
-    ["textarea.ant-input", "textarea"],
-    ["input.ant-input", "input"],
-    [".ant-input-affix-wrapper", "input"],
-    ['input[type="number"]', "number"],
-    ['input[type="email"]', "input"],
-    ['input[type="tel"]', "input"],
-    ['input[type="password"]', "input"],
-    ['input[type="text"]', "input"],
-  ];
+/**
+ * 纯 TimePicker（无日期）：与 DatePicker 共用 .ant-picker，需与日历区分。
+ * 用于同一 Form.Item 内 Select + ProFormTimePicker（如营销计划「执行时间」）。
+ */
+export function isTimeOnlyPickerEl(picker: HTMLElement): boolean {
+  if (picker.classList.contains("ant-picker-range")) return false;
+  const input = picker.querySelector<HTMLInputElement>(".ant-picker-input input");
+  const ph = input?.getAttribute("placeholder")?.trim() ?? "";
+  if (/请选择时间|时分秒|时\s*分|HH:mm/i.test(ph)) return true;
+  if (
+    picker.querySelector(".anticon-clock-circle") &&
+    !picker.querySelector(".anticon-calendar")
+  ) {
+    return true;
+  }
+  return false;
+}
 
-  for (const [selector, type] of selectors) {
-    const el = container.querySelector<HTMLElement>(selector);
-    if (el) return { type, element: el };
+/**
+ * 枚举同一 .ant-form-item 内所有可独立填充的控件（后台常见：一个 Form.Item 里多个 Pro 子项）。
+ * 顺序为文档序。
+ *
+ * 去重原则：
+ *   仅「复合控件」(cascader / treeselect / transfer) 会在内部复用原子控件（如内嵌 .ant-select / input），
+ *   这种情况才把嵌套候选丢掉；其它容器（radio-group / checkbox-group / picker 等）即便 DOM 上包住子字段，
+ *   也要保留子字段——否则像 jarvis `Radio.Group` 内条件渲染的 `ProFormDigit / ProFormDateTimePicker`
+ *   会被外层 radio-group 吞掉而漏扫。
+ */
+const COMPOSITE_WRAPPER_TYPES: FieldType[] = ["cascader", "treeselect", "transfer"];
+export function enumerateControlsInFormItem(
+  container: HTMLElement,
+): { type: FieldType; element: HTMLElement }[] {
+  const control =
+    container.querySelector<HTMLElement>(".ant-form-item-control") ?? container;
+
+  type Cand = { type: FieldType; element: HTMLElement };
+  const raw: Cand[] = [];
+
+  const push = (type: FieldType, el: HTMLElement) => {
+    if (!isVisible(el) || !container.contains(el)) return;
+    if (raw.some((r) => r.element === el)) return;
+    raw.push({ type, element: el });
+  };
+
+  const addEach = (sel: string, type: FieldType) => {
+    control.querySelectorAll<HTMLElement>(sel).forEach((el) => push(type, el));
+  };
+
+  addEach(".ant-cascader", "cascader");
+  addEach(".ant-tree-select", "treeselect");
+  addEach(".ant-transfer", "transfer");
+  addEach(".ant-switch", "switch");
+  addEach(".ant-select", "select");
+  addEach(".ant-radio-group", "radio");
+  addEach(".ant-checkbox-group", "checkbox");
+
+  control.querySelectorAll<HTMLElement>(".ant-checkbox-wrapper").forEach((el) => {
+    if (el.closest(".ant-checkbox-group")) return;
+    push("checkbox", el);
+  });
+
+  control
+    .querySelectorAll<HTMLElement>(
+      ".ant-picker.ant-picker-range, .ant-picker-range",
+    )
+    .forEach((el) => push("daterange", el));
+
+  control
+    .querySelectorAll<HTMLElement>(".ant-picker:not(.ant-picker-range)")
+    .forEach((el) => {
+      push(isTimeOnlyPickerEl(el) ? "time" : "date", el);
+    });
+
+  addEach(".ant-input-number", "number");
+
+  control
+    .querySelectorAll<HTMLTextAreaElement>("textarea.ant-input, textarea")
+    .forEach((el) => push("textarea", el));
+
+  addEach(".ant-input-affix-wrapper", "input");
+
+  control.querySelectorAll<HTMLInputElement>("input.ant-input").forEach((inp) => {
+    if (inp.closest(".ant-picker")) return;
+    if (inp.closest(".ant-input-number")) return;
+    if (inp.closest(".ant-select")) return;
+    if (inp.closest(".ant-input-affix-wrapper")) return;
+    push("input", inp);
+  });
+
+  raw.sort((a, b) => {
+    const pos = a.element.compareDocumentPosition(b.element);
+    if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+    if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+    return 0;
+  });
+
+  const out: Cand[] = [];
+  for (const c of raw) {
+    const swallowedByComposite = raw.some(
+      (a) =>
+        a !== c
+        && COMPOSITE_WRAPPER_TYPES.includes(a.type)
+        && a.element.contains(c.element),
+    );
+    if (swallowedByComposite) continue;
+    if (out.some((a) => a.element === c.element)) continue;
+    out.push(c);
   }
 
-  return null;
+  return out;
 }
 
 /** 尝试从字段元素中提取可用的标识（name / id） */
@@ -266,11 +342,20 @@ function isRequired(container: HTMLElement): boolean {
  * 提取 Radio / Checkbox 选项文本。
  * 只提取 wrapper 自身的直属文本，避免拾取到嵌套的 ProFormDependency 内容。
  */
-function extractOptions(container: HTMLElement, type: FieldType): string[] {
+function extractOptions(
+  container: HTMLElement,
+  type: FieldType,
+  fieldElement?: HTMLElement,
+): string[] {
   if (type === "radio") {
-    return Array.from(container.querySelectorAll(".ant-radio-wrapper"))
+    const root =
+      fieldElement?.classList.contains("ant-radio-group") ?
+        fieldElement
+      : fieldElement?.closest(".ant-radio-group") ??
+        container.querySelector(".ant-radio-group") ??
+        container;
+    return Array.from(root.querySelectorAll(".ant-radio-wrapper"))
       .map((el) => {
-        // 优先取 wrapper 内除 .ant-radio 外的直属 span 文本
         const textSpan = el.querySelector(":scope > span:not(.ant-radio)");
         return textSpan?.textContent?.trim() ?? el.textContent?.trim() ?? "";
       })
@@ -278,17 +363,33 @@ function extractOptions(container: HTMLElement, type: FieldType): string[] {
   }
 
   if (type === "checkbox") {
+    const el = fieldElement;
+    if (el?.classList.contains("ant-checkbox-group")) {
+      return Array.from(el.querySelectorAll(".ant-checkbox-wrapper"))
+        .map((w) => {
+          const textSpan = w.querySelector(":scope > span:not(.ant-checkbox)");
+          return textSpan?.textContent?.trim() ?? w.textContent?.trim() ?? "";
+        })
+        .filter(Boolean);
+    }
+    if (el?.classList.contains("ant-checkbox-wrapper")) {
+      const textSpan = el.querySelector(":scope > span:not(.ant-checkbox)");
+      const t =
+        textSpan?.textContent?.trim() ?? el.textContent?.trim() ?? "";
+      return t ? [t] : [];
+    }
     return Array.from(container.querySelectorAll(".ant-checkbox-wrapper"))
-      .map((el) => {
-        const textSpan = el.querySelector(":scope > span:not(.ant-checkbox)");
-        return textSpan?.textContent?.trim() ?? el.textContent?.trim() ?? "";
+      .map((w) => {
+        const textSpan = w.querySelector(":scope > span:not(.ant-checkbox)");
+        return textSpan?.textContent?.trim() ?? w.textContent?.trim() ?? "";
       })
       .filter(Boolean);
   }
 
   if (type === "select") {
-    const selectEl = container.querySelector(".ant-select");
-    // antd 5+：.ant-select-selection-item；antd 4：.ant-select-selection-selected-value
+    const selectEl =
+      fieldElement?.classList.contains("ant-select") ? fieldElement
+      : fieldElement?.closest(".ant-select") ?? container.querySelector(".ant-select");
     const selectedText =
       selectEl
         ?.querySelector(".ant-select-selection-item")
@@ -401,8 +502,8 @@ export function scanFormFields(): FormFieldInfo[] {
   for (const container of formItems) {
     if (!isVisible(container)) continue;
 
-    const detected = detectFieldType(container);
-    if (!detected) continue;
+    const controls = enumerateControlsInFormItem(container);
+    if (controls.length === 0) continue;
 
     const baseLabel = extractLabel(container);
     const baseExtra = extractExtra(container);
@@ -430,7 +531,7 @@ export function scanFormFields(): FormFieldInfo[] {
           .join("；")
           .slice(0, 800) || undefined;
 
-      const options = extractOptions(container, type);
+      const options = extractOptions(container, type, element);
       let rawConstraints = extractConstraints(element, type);
       const dataPattern = extractDataPatternFromContainer(container);
       if (dataPattern && !rawConstraints?.pattern) {
@@ -453,14 +554,20 @@ export function scanFormFields(): FormFieldInfo[] {
                 | null);
         currentValue = inputEl?.value || undefined;
       } else if (type === "select") {
+        const selRoot =
+          element.classList.contains("ant-select") ? element
+          : element.closest(".ant-select");
         currentValue =
-          container
-            .querySelector(".ant-select-selection-item")
-            ?.textContent?.trim() ||
-          container
-            .querySelector(".ant-select-selection-selected-value")
+          selRoot?.querySelector(".ant-select-selection-item")?.textContent?.trim() ||
+          selRoot
+            ?.querySelector(".ant-select-selection-selected-value")
             ?.textContent?.trim() ||
           undefined;
+      } else if (type === "time") {
+        const inp = element.querySelector<HTMLInputElement>(
+          ".ant-picker-input input",
+        );
+        currentValue = inp?.value?.trim() || undefined;
       } else if (type === "date" || type === "daterange") {
         const dateInputs = element.querySelectorAll<HTMLInputElement>("input");
         currentValue =
@@ -470,32 +577,35 @@ export function scanFormFields(): FormFieldInfo[] {
             .join(",") || undefined;
       } else if (type === "cascader") {
         currentValue =
-          container
+          element
             .querySelector(".ant-cascader-picker-label")
             ?.textContent?.trim() ||
-          container
+          element
             .querySelector(".ant-select-selection-item")
             ?.textContent?.trim() ||
-          container
+          element
             .querySelector(".ant-select-selection-selected-value")
             ?.textContent?.trim() ||
           undefined;
       } else if (type === "treeselect") {
         currentValue =
-          container
+          element
             .querySelector(".ant-select-selection-item")
             ?.textContent?.trim() ||
-          container
+          element
             .querySelector(".ant-select-selection-selected-value")
             ?.textContent?.trim() ||
           undefined;
       } else if (type === "switch") {
-        const sw = container.querySelector(".ant-switch");
+        const sw =
+          element.classList.contains("ant-switch") ?
+            element
+          : element.querySelector(".ant-switch");
         currentValue = sw?.classList.contains("ant-switch-checked")
           ? "true"
           : "false";
       } else if (type === "transfer") {
-        const rightItems = container.querySelectorAll(
+        const rightItems = element.querySelectorAll(
           ".ant-transfer-list:last-child .ant-transfer-list-content-item",
         );
         currentValue =
@@ -512,20 +622,27 @@ export function scanFormFields(): FormFieldInfo[] {
             undefined;
         }
       } else if (type === "checkbox") {
-        // 已勾选的 checkbox：聚合所有勾选项文本；单个 checkbox 则记录 'true'
-        const checkedWrappers = Array.from(
-          element.querySelectorAll<HTMLElement>(
-            ".ant-checkbox-wrapper-checked",
-          ),
-        );
-        if (checkedWrappers.length > 0) {
-          const labels = checkedWrappers
-            .map((el) => {
-              const span = el.querySelector(":scope > span:not(.ant-checkbox)");
-              return (span?.textContent ?? el.textContent ?? "").trim();
-            })
-            .filter(Boolean);
-          currentValue = labels.length > 0 ? labels.join(",") : "true";
+        if (element.classList.contains("ant-checkbox-group")) {
+          const checkedWrappers = Array.from(
+            element.querySelectorAll<HTMLElement>(
+              ".ant-checkbox-wrapper-checked",
+            ),
+          );
+          if (checkedWrappers.length > 0) {
+            const labels = checkedWrappers
+              .map((el) => {
+                const span = el.querySelector(":scope > span:not(.ant-checkbox)");
+                return (span?.textContent ?? el.textContent ?? "").trim();
+              })
+              .filter(Boolean);
+            currentValue = labels.length > 0 ? labels.join(",") : "true";
+          }
+        } else if (
+          element.classList.contains("ant-checkbox-wrapper-checked")
+        ) {
+          const span = element.querySelector(":scope > span:not(.ant-checkbox)");
+          currentValue =
+            (span?.textContent ?? element.textContent ?? "").trim() || "true";
         }
       }
 
@@ -545,15 +662,9 @@ export function scanFormFields(): FormFieldInfo[] {
       fieldIndex++;
     };
 
-    pushField(detected.type, detected.element);
-
-    // 兼容同一 form-item 内的依赖数值字段（如 ProFormDependency + ProFormDigit noStyle）
-    if (detected.type !== "number") {
-      const numberElement =
-        container.querySelector<HTMLElement>(".ant-input-number");
-      if (numberElement && numberElement !== detected.element) {
-        pushField("number", numberElement, "（数值）");
-      }
+    for (let i = 0; i < controls.length; i++) {
+      const suffix = i === 0 ? "" : `（${i + 1}）`;
+      pushField(controls[i].type, controls[i].element, suffix);
     }
   }
 

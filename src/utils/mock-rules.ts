@@ -146,6 +146,13 @@ function randomFutureDateTime(hints = ''): string {
   return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
 }
 
+/** ProFormTimePicker / TimePicker：仅 HH:mm:ss（与 DatePicker 的 date 类型区分） */
+function randomTimeHms(): string {
+  const h = randInt(10, 17);
+  const m = pickOne([0, 30]);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
+}
+
 /** extra/ruleHints 暗示不可选过去日（与 disabledDate 常见写法对齐，不解析 JS） */
 function hintsSuggestNoPastDate(hints: string): boolean {
   return /需晚于|不得早于|不能早于|昨天|前天|名单包|计划.*时间|执行时间|生效时间|disabledDate|不可选.*过去/i.test(hints);
@@ -491,6 +498,11 @@ export function generateMockData(fields: FormFieldInfo[]): FillData {
     // InputNumber：只生成合法数字，优先用 extra + min/max 约束，不走「姓名」等文本类 label 规则
     if (field.type === 'number') {
       data[field.id] = generateNumberValue(field);
+      continue;
+    }
+
+    if (field.type === 'time') {
+      data[field.id] = randomTimeHms();
       continue;
     }
 
