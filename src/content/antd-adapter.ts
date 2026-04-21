@@ -172,15 +172,15 @@ async function fillCheckbox(container: HTMLElement, value: string) {
   return true;
 }
 
-/** 解析 YYYY-MM-DD */
-function parseIsoDateParts(s: string): { y: number; m: number; d: number } | null {
+/** 解析 YYYY-MM-DD（可选尾部时间，单测依赖此行为） */
+export function parseIsoDateParts(s: string): { y: number; m: number; d: number } | null {
   const m = s.trim().match(/^(\d{4})-(\d{2})-(\d{2})(?:\s+\d{2}:\d{2}(?::\d{2})?)?$/);
   if (!m) return null;
   return { y: +m[1], m: +m[2], d: +m[3] };
 }
 
 /** 解析 HH:mm[:ss]（若不存在则返回 null） */
-function parseTimeParts(s: string): { h: number; m: number; sec: number } | null {
+export function parseTimeParts(s: string): { h: number; m: number; sec: number } | null {
   const m = s.trim().match(/\b(\d{2}):(\d{2})(?::(\d{2}))?\b/);
   if (!m) return null;
   return { h: +m[1], m: +m[2], sec: m[3] ? +m[3] : 0 };

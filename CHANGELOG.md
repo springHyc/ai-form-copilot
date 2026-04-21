@@ -2,6 +2,13 @@
 
 本文件记录 AI Form Copilot 的重要变更。
 
+## 0.1.2 - 2026-04-21
+
+### 测试
+
+- feat: 增加 Vitest + jsdom 回归单测 `src/__tests__/marketing-plan-failure-cases.test.ts`，覆盖营销计划第一步相关失败案例：异步 Select 扫描、Radio+同项 InputNumber 双字段、Radio 选项与 `currentValue`、执行时间日期解析与 Mock 格式、客群标签 ruleHints/maxLength 与字母数字 Mock、嵌套 `ant-form-item` 过滤。
+- feat: 添加失败案例6
+
 ## [0.1.1] - 2026-04-21
 
 ### 修复
