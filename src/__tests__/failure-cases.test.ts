@@ -677,12 +677,15 @@ describe("截图回归：新增处理人（资金方 + 处理人姓名 + 处理�
     expect(mobileInput?.disabled).toBe(true);
   });
 
-  it("generateMockData：field_0 random、field_1 中文名；field_2 仍按标签生成手机号（联动字段不依赖该值写入 DOM）", () => {
+  it("generateMockData：两路 select（资金方 / 处理人姓名）均为 random，field_2 仍按标签生成手机号", () => {
+    // 备注：处理人姓名虽然 label 含「姓名」，但它是异步下拉 select（选项是后台真实处理人列表），
+    // 随机生成中文名几乎不可能命中下拉 option，和「提额机构pid」同类问题，因此统一走 random
+    // 交由 fillSelect 在真实下拉里随机点选；联动手机号由业务 onChange 自动带出，不靠 Mock。
     mountVisibleForm(addHandlerFormHtml);
     const fields = scanFormFields();
     const data = generateMockData(fields);
     expect(data.field_0).toBe("random");
-    expect(String(data.field_1)).toMatch(/[\u4e00-\u9fff]/);
+    expect(data.field_1).toBe("random");
     expect(String(data.field_2)).toMatch(/^1[3-9]\d{9}$/);
     expect(Object.keys(data).sort()).toEqual(["field_0", "field_1", "field_2"]);
   });
@@ -1032,5 +1035,57 @@ describe("失败案例 9：RangePicker + showTime（new-market 首页弹窗「�
     const inputs = document.querySelectorAll<HTMLInputElement>(".ant-picker-input input");
     expect(inputs[0].value).toBe("2026-05-01");
     expect(inputs[1].value).toBe("2026-05-02");
+  });
+});
+
+describe("失败案例 10：label 含 id/编号 的异步 Select（jarvis 营销计划「提额机构pid」）", () => {
+  it("Mock：type=select 无 options 时应给 `random`，即使 label 含 `id/pid/编号` 也不走 LABEL_RULES 的 randomCode", () => {
+    const fields: FormFieldInfo[] = [
+      { id: "f_pid", label: "提额机构pid", type: "select", required: true },
+      { id: "f_group", label: "所属分组", type: "select", required: true },
+      { id: "f_bh", label: "机构编号", type: "select", required: true },
+      { id: "f_code", label: "渠道代码", type: "select", required: true },
+      { id: "f_num", label: "客户编号", type: "select", required: true },
+    ];
+    const data = generateMockData(fields);
+    for (const f of fields) {
+      expect(data[f.id]).toBe("random");
+    }
+  });
+
+  it("Mock：type=select 有 options 时从 options 挑，不被 label 里的 `id` 误导成 randomCode", () => {
+    const fields: FormFieldInfo[] = [
+      {
+        id: "f_pid",
+        label: "提额机构pid",
+        type: "select",
+        required: true,
+        options: ["10648/小花钱包API", "10677/你我贷一融优贷", "10771/桔多多榕树版"],
+      },
+    ];
+    const data = generateMockData(fields);
+    expect(fields[0].options).toContain(data[fields[0].id]);
+  });
+
+  it("Mock：cascader / treeselect / transfer 无 options 同样走 `random`，不落 LABEL_RULES", () => {
+    const fields: FormFieldInfo[] = [
+      { id: "f_c", label: "行业编号", type: "cascader", required: true },
+      { id: "f_t", label: "部门id", type: "treeselect", required: true },
+      { id: "f_x", label: "用户编号", type: "transfer", required: true },
+    ];
+    const data = generateMockData(fields);
+    for (const f of fields) {
+      expect(data[f.id]).toBe("random");
+    }
+  });
+
+  it("对照：type=input 且 label 含 `id/编号` 仍走 randomCode（不受本次改动影响）", () => {
+    const fields: FormFieldInfo[] = [
+      { id: "f_in", label: "订单编号", type: "input", required: true },
+    ];
+    const data = generateMockData(fields);
+    const v = String(data[fields[0].id] ?? "");
+    expect(v).toMatch(/^[A-Z0-9]{3,}$/);
+    expect(v).not.toBe("random");
   });
 });

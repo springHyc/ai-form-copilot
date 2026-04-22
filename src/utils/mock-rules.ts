@@ -818,7 +818,25 @@ export function generateMockData(fields: FormFieldInfo[]): FillData {
       }
     }
 
-    // 有选项的字段，随机选一个
+    // Select 家族短路：不走 LABEL_RULES / wantsAlphanumeric 等文本规则。
+    // 这些字段的值必须与真实下拉 option 文案对齐，随机字符串（如 randomCode 对「提额机构pid」里的 "id"）
+    // 几乎不可能命中 → 导致 fillSelect 找不到 option、填不进。
+    //   有 options → 从 options 挑一条；
+    //   无 options（异步下拉）→ "random"，交给 fillSelect 在真实下拉里随机点选。
+    if (
+      field.type === "select" ||
+      field.type === "cascader" ||
+      field.type === "treeselect" ||
+      field.type === "transfer"
+    ) {
+      data[field.id] =
+        field.options && field.options.length > 0
+          ? pickOne(field.options)
+          : "random";
+      continue;
+    }
+
+    // 有选项的字段（radio / checkbox 等），随机选一个
     if (field.options && field.options.length > 0) {
       data[field.id] = pickOne(field.options);
       continue;
@@ -886,14 +904,8 @@ export function generateMockData(fields: FormFieldInfo[]): FillData {
       case "switch":
         data[field.id] = randInt(0, 1) ? "true" : "false";
         break;
-      case "select":
-      case "cascader":
-      case "treeselect":
-      case "transfer":
-        // 异步/未展开的下拉无 options；填充时在页面上按文案匹配或随机点选（见 fillSelect）
-        data[field.id] = "random";
-        break;
       default:
+        // select/cascader/treeselect/transfer 已在循环前的「Select 家族短路」分支处理，不会走到这里
         break;
     }
 
