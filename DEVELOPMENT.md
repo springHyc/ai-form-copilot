@@ -305,12 +305,18 @@ npm run test
 | `npm run build:prod:minor` | `1.0.0 → 1.1.0` (minor)     | 新增失败案例覆盖 / 新组件 |
 | `npm run build:prod:major` | `1.0.0 → 2.0.0` (major)     | 不兼容改动、协议变更      |
 
-每条命令依次做四件事：
+每条命令依次做四件事（**压缩包一定先于 git 推送**）：
 
 1. `npm version <level> --no-git-tag-version` —— 只改 `package.json` / `package-lock.json`，**不自动 commit / tag**（留给最后一步统一处理）。
 2. `npm run build` —— 依次跑三份 Vite 配置（Popup / Content / Background），产物输出到 `dist/`。
-3. `npm run pack:dist` —— 执行 `scripts/pack-dist.mjs`，把 `dist/` 打成 `releases/ai-form-copilot@<version>-<YYYYMMDD-HHmmss>.zip`（本地时间戳，同版本多次打包按时间累积；`releases/` 已在 `.gitignore` 中）。
-4. `npm run publish:tag` —— 执行 `scripts/publish-tag.mjs`，把版本 bump 提交为 `chore: release v<version>`、打 `v<version>` tag，然后 `git push` + `git push origin v<version>`。同名 tag 已存在会直接终止，避免覆盖历史。
+3. `npm run pack:dist` —— 执行 `scripts/pack-dist.mjs`，把 `dist/` 打成 `releases/ai-form-copilot@<version>-<YYYYMMDD-HHmmss>.zip`（本地时间戳，同版本多次打包按时间累积；`releases/` 已在 `.gitignore` 中，**不提交进仓库**）。
+4. `npm run publish:tag` —— 执行 `scripts/publish-tag.mjs`，在 **zip 已生成之后** 才动 git：
+   - `git add` + `git commit -m "chore: release v<version>"`（仅 `package.json` / `package-lock.json`；**CHANGELOG 等请在本命令前自行提交**，否则不会进本次 release commit）；
+   - `git tag v<version>`；
+   - **`git push`** —— 推送**当前分支**，远端收到带新版本的 **commit**（这就是「打完包再推代码」）；
+   - **`git push origin v<version>`** —— 再推送 **tag**（与上一步是两次不同含义的 push：分支 + tag，不是重复推同一段历史）。
+
+同名 tag 已存在会直接终止，避免覆盖历史。
 
 ### 单独使用
 
@@ -320,7 +326,7 @@ npm run test
 ### 常见问题
 
 - **Build 失败怎么恢复？** `--no-git-tag-version` 保证 `package.json` 的版本号改动只在工作区，还没进 git；失败后跑 `git checkout package.json package-lock.json` 即可。
-- **第一次 push 需要 upstream**：如果当前分支没有跟踪远端分支，`git push` 会报 `no upstream branch`，先 `git push -u origin <branch>` 一次，之后都能直接 push。
+- **第一次 push 需要 upstream**：如果当前分支没有跟踪远端分支，第 4 步里的 `git push` 会报 `no upstream branch`，先 `git push -u origin <branch>` 一次，之后 `build:prod*` 里的 `git push` 才能成功。
 - **撤销一次发布**：`git tag -d v<version> && git reset --hard HEAD~1 && git push origin :refs/tags/v<version>`（最后一条仅当 tag 已推到远端时需要）。
 - **历史 zip 归档**：`releases/` 目录不会被 `npm run build` 清理，本地保留即可；远端分发建议把 zip 挂到对应 tag 的 GitHub Release 附件上。
 

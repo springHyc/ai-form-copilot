@@ -34,6 +34,10 @@ try {
 }
 
 sh(`git tag ${tag}`);
+// 顺序保证：上游 `build:prod*` 已先执行 `pack:dist`，本地 zip 已生成后再进入本脚本。
+// 下面第一次 push：推**当前分支**（含上面的 release commit）；第二次：只推 **tag**（远端据此打 Release）。
+console.log('[publish-tag] 推送当前分支（含 chore: release commit，zip 已在本地生成）…');
 sh('git push');
+console.log(`[publish-tag] 推送 tag ${tag} …`);
 sh(`git push origin ${tag}`);
-console.log(`[publish-tag] 已发布 ${tag}`);
+console.log(`[publish-tag] 已发布 ${tag}（分支 + tag 均已尝试推送）`);
