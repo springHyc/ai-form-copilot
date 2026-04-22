@@ -1,6 +1,6 @@
 {
   "name": "ai-form-copilot-cursor",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "",
   "type": "module",
   "scripts": {
@@ -11,6 +11,11 @@
     "build:popup": "vite build",
     "build:content": "vite build --config vite.config.content.ts",
     "build:background": "vite build --config vite.config.background.ts",
+    "build:prod": "npm version patch --no-git-tag-version && npm run build && npm run pack:dist && npm run publish:tag",
+    "build:prod:minor": "npm version minor --no-git-tag-version && npm run build && npm run pack:dist && npm run publish:tag",
+    "build:prod:major": "npm version major --no-git-tag-version && npm run build && npm run pack:dist && npm run publish:tag",
+    "pack:dist": "node scripts/pack-dist.mjs",
+    "publish:tag": "node scripts/publish-tag.mjs",
     "preview": "vite preview"
   },
   "keywords": [],
