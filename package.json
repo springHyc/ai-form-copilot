@@ -1,6 +1,6 @@
 {
   "name": "ai-form-copilot-cursor",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "AI Form Copilot",
   "type": "module",
   "scripts": {
