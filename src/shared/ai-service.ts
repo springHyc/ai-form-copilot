@@ -1,8 +1,8 @@
-import type { AIConfig, FillData, FormFieldInfo } from './types';
-import { isMoonshotAnthropicStyleBase } from './moonshot-kimi';
+import type { AIConfig, AiProvider, FillData, FormFieldInfo } from "./types";
+import { isMoonshotAnthropicStyleBase } from "./moonshot-kimi";
 
 /** 鉴权 / API Key 无效等配置问题时向用户展示的文案 */
-export const AI_CALL_CONFIG_ERROR_HINT = 'AI 大模型调用失败，请检查你的AI配置';
+export const AI_CALL_CONFIG_ERROR_HINT = "AI 大模型调用失败，请检查你的AI配置";
 
 /**
  * 是否为 API Key、鉴权类错误（与 generateWithAI 抛出的 message 格式及常见服务商响应体对齐）
@@ -27,23 +27,29 @@ export function toUserFacingAiCallError(message: string): Error {
 function buildPrompt(fields: FormFieldInfo[]): string {
   const fieldDescriptions = fields.map((f) => {
     const parts = [`字段ID: ${f.id}`, `标签: ${f.label}`, `类型: ${f.type}`];
-    if (f.required) parts.push('必填: 是');
+    if (f.required) parts.push("必填: 是");
     if (f.placeholder) parts.push(`placeholder: ${f.placeholder}`);
-    if (f.ruleHints) parts.push(`校验/规则摘要(ruleHints，来自页面可见信息): ${f.ruleHints}`);
-    if (f.validationError) parts.push(`当前校验错误(上一轮填充后页面展示): ${f.validationError}`);
+    if (f.ruleHints)
+      parts.push(`校验/规则摘要(ruleHints，来自页面可见信息): ${f.ruleHints}`);
+    if (f.validationError)
+      parts.push(`当前校验错误(上一轮填充后页面展示): ${f.validationError}`);
     if (f.extra) parts.push(`表单项说明(extra): ${f.extra}`);
-    if (f.options?.length) parts.push(`可选值: ${f.options.join(', ')}`);
-    if (f.constraints?.maxLength) parts.push(`最大长度: ${f.constraints.maxLength}`);
-    if (f.constraints?.min !== undefined) parts.push(`最小值: ${f.constraints.min}`);
-    if (f.constraints?.max !== undefined) parts.push(`最大值: ${f.constraints.max}`);
-    if (f.constraints?.pattern) parts.push(`HTML pattern(正则): ${f.constraints.pattern}`);
-    return parts.join(' | ');
+    if (f.options?.length) parts.push(`可选值: ${f.options.join(", ")}`);
+    if (f.constraints?.maxLength)
+      parts.push(`最大长度: ${f.constraints.maxLength}`);
+    if (f.constraints?.min !== undefined)
+      parts.push(`最小值: ${f.constraints.min}`);
+    if (f.constraints?.max !== undefined)
+      parts.push(`最大值: ${f.constraints.max}`);
+    if (f.constraints?.pattern)
+      parts.push(`HTML pattern(正则): ${f.constraints.pattern}`);
+    return parts.join(" | ");
   });
 
   return `你是一个智能表单测试数据生成器。请根据以下表单字段信息，生成合理的中文测试数据。
 
 ## 字段列表
-${fieldDescriptions.join('\n')}
+${fieldDescriptions.join("\n")}
 
 ## 生成规则
 1. 根据字段标签语义生成合理数据（如"姓名"→中文姓名，"手机号"→11位手机号，"邮箱"→邮箱格式）
@@ -74,17 +80,17 @@ async function generateWithAnthropicMessages(
   const userContent = buildPrompt(fields);
   const url = `${baseUrl}/v1/messages`;
   const response = await fetch(url, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       Authorization: `Bearer ${config.apiKey}`,
-      'anthropic-version': '2023-06-01',
+      "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
       model: config.model,
       max_tokens: 8192,
-      system: '你是一个专业的测试数据生成助手，只返回 JSON 格式数据。',
-      messages: [{ role: 'user', content: userContent }],
+      system: "你是一个专业的测试数据生成助手，只返回 JSON 格式数据。",
+      messages: [{ role: "user", content: userContent }],
       temperature: 0.7,
     }),
   });
@@ -95,12 +101,14 @@ async function generateWithAnthropicMessages(
   }
 
   const result = await response.json();
-  const blocks = result.content as { type: string; text?: string }[] | undefined;
-  const textBlock = blocks?.find((c) => c.type === 'text');
+  const blocks = result.content as
+    | { type: string; text?: string }[]
+    | undefined;
+  const textBlock = blocks?.find((c) => c.type === "text");
   const content = textBlock?.text;
 
   if (!content) {
-    throw new Error('AI 返回内容为空');
+    throw new Error("AI 返回内容为空");
   }
 
   try {
@@ -114,35 +122,51 @@ async function generateWithAnthropicMessages(
   }
 }
 
+/**
+ * 是否在请求体里带 `response_format: { type: 'json_object' }`。
+ * MiniMax 等部分 OpenAI 兼容实现不支持该字段，会 400；其余与 OpenAI 对齐的平台一般支持。
+ */
+function useJsonObjectResponseFormat(provider: AiProvider): boolean {
+  return provider !== "minimax";
+}
+
 /** 调用 OpenAI 兼容 API 生成填充数据 */
-export async function generateWithAI(fields: FormFieldInfo[], config: AIConfig): Promise<FillData> {
-  const baseUrl = config.baseUrl?.replace(/\/$/, '') || 'https://api.openai.com/v1';
+export async function generateWithAI(
+  fields: FormFieldInfo[],
+  config: AIConfig,
+): Promise<FillData> {
+  const baseUrl =
+    config.baseUrl?.replace(/\/$/, "") || "https://api.openai.com/v1";
 
   if (isMoonshotAnthropicStyleBase(baseUrl)) {
     return generateWithAnthropicMessages(fields, config, baseUrl);
   }
 
+  const body: Record<string, unknown> = {
+    model: config.model,
+    messages: [
+      {
+        role: "system",
+        content: "你是一个专业的测试数据生成助手，只返回 JSON 格式数据。",
+      },
+      {
+        role: "user",
+        content: buildPrompt(fields),
+      },
+    ],
+    temperature: 0.7,
+  };
+  if (useJsonObjectResponseFormat(config.provider)) {
+    body.response_format = { type: "json_object" };
+  }
+
   const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       Authorization: `Bearer ${config.apiKey}`,
     },
-    body: JSON.stringify({
-      model: config.model,
-      messages: [
-        {
-          role: 'system',
-          content: '你是一个专业的测试数据生成助手，只返回 JSON 格式数据。',
-        },
-        {
-          role: 'user',
-          content: buildPrompt(fields),
-        },
-      ],
-      temperature: 0.7,
-      response_format: { type: 'json_object' },
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -154,7 +178,7 @@ export async function generateWithAI(fields: FormFieldInfo[], config: AIConfig):
   const content = result.choices?.[0]?.message?.content;
 
   if (!content) {
-    throw new Error('AI 返回内容为空');
+    throw new Error("AI 返回内容为空");
   }
 
   try {

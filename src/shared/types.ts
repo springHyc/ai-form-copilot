@@ -51,9 +51,28 @@ export interface FillData {
   [fieldId: string]: string | number | boolean;
 }
 
+/** 内置 AI 服务商（均为 OpenAI Chat Completions 兼容路径，除 Kimi K2.5 等走 Anthropic 兼容，见 moonshot-kimi） */
+export type AiProvider =
+  | 'openai'
+  | 'deepseek'
+  | 'kimi'
+  /** 智谱 GLM，OpenAI 兼容 */
+  | 'zhipu'
+  /** 阿里云百炼 DashScope 兼容模式 */
+  | 'bailian'
+  /** MiniMax 国内 OpenAI 兼容 */
+  | 'minimax'
+  /** 火山引擎方舟（豆包等），OpenAI 兼容 */
+  | 'volcengine'
+  /** 硅基流动等聚合路由，OpenAI 兼容 */
+  | 'siliconflow'
+  /** 百川智能，OpenAI 兼容 */
+  | 'baichuan'
+  | 'custom';
+
 /** AI 服务配置 */
 export interface AIConfig {
-  provider: 'openai' | 'deepseek' | 'kimi' | 'custom';
+  provider: AiProvider;
   apiKey: string;
   model: string;
   baseUrl?: string;

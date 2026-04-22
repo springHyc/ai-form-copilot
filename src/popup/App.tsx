@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { MessageType } from '@/shared/messages';
-import type { AIConfig, FillData, FormFieldInfo, Settings } from '@/shared/types';
+import type { AIConfig, AiProvider, FillData, FormFieldInfo, Settings } from '@/shared/types';
 import { DEFAULT_SETTINGS } from '@/shared/types';
 import { MOONSHOT_CN_CHAT_BASE, moonshotCnBaseUrlForKimiModel } from '@/shared/moonshot-kimi';
 import { toUserFacingAiCallError } from '@/shared/ai-service';
@@ -56,7 +56,8 @@ const TYPE_COLORS: Record<string, string> = {
 
 /* ========== 模型预设 ========== */
 
-const MODEL_PRESETS: Record<string, { label: string; value: string }[]> = {
+/** 模型名以各平台控制台为准；下列为常用默认，便于开箱（国内 Coding Plan 类平台对比可参考 [AI Coding Plan 对比](https://z4crk6mg95.coze.site/)） */
+const MODEL_PRESETS: Record<AiProvider, { label: string; value: string }[]> = {
   openai: [
     { label: 'GPT-4o-mini', value: 'gpt-4o-mini' },
     { label: 'GPT-4o', value: 'gpt-4o' },
@@ -73,14 +74,48 @@ const MODEL_PRESETS: Record<string, { label: string; value: string }[]> = {
     { label: 'moonshot-v1-32k', value: 'moonshot-v1-32k' },
     { label: 'moonshot-v1-128k', value: 'moonshot-v1-128k' },
   ],
+  zhipu: [
+    { label: 'GLM-4-Flash', value: 'glm-4-flash' },
+    { label: 'GLM-4-Plus', value: 'glm-4-plus' },
+    { label: 'GLM-4-Air', value: 'glm-4-air' },
+  ],
+  bailian: [
+    { label: 'qwen-plus', value: 'qwen-plus' },
+    { label: 'qwen-turbo', value: 'qwen-turbo' },
+    { label: 'qwen-max', value: 'qwen-max' },
+  ],
+  minimax: [
+    { label: 'MiniMax-M2', value: 'MiniMax-M2' },
+    { label: 'abab6.5s-chat', value: 'abab6.5s-chat' },
+  ],
+  volcengine: [
+    { label: 'Doubao Pro 32K', value: 'doubao-pro-32k' },
+    { label: 'Doubao Lite 4K', value: 'doubao-lite-4k' },
+    { label: 'Doubao Seed 1.6 Flash', value: 'doubao-seed-1-6-flash-250915' },
+  ],
+  siliconflow: [
+    { label: 'DeepSeek-V3', value: 'deepseek-ai/DeepSeek-V3' },
+    { label: 'Qwen2.5-72B-Instruct', value: 'Qwen/Qwen2.5-72B-Instruct' },
+    { label: 'Qwen2.5-7B-Instruct', value: 'Qwen/Qwen2.5-7B-Instruct' },
+  ],
+  baichuan: [
+    { label: 'Baichuan4-Turbo', value: 'Baichuan4-Turbo' },
+    { label: 'Baichuan3-Turbo', value: 'Baichuan3-Turbo' },
+  ],
   custom: [],
 };
 
-const PROVIDER_URLS: Record<string, string> = {
+const PROVIDER_URLS: Record<AiProvider, string> = {
   openai: 'https://api.openai.com/v1',
   deepseek: 'https://api.deepseek.com',
   /** Kimi 默认入口；选中具体模型后再按 kimi-k2.5 / 其它模型切到 anthropic 或 v1 */
   kimi: MOONSHOT_CN_CHAT_BASE,
+  zhipu: 'https://open.bigmodel.cn/api/paas/v4',
+  bailian: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  minimax: 'https://api.minimaxi.com/v1',
+  volcengine: 'https://ark.cn-beijing.volces.com/api/v3',
+  siliconflow: 'https://api.siliconflow.cn/v1',
+  baichuan: 'https://api.baichuan-ai.com/v1',
   custom: '',
 };
 
@@ -538,11 +573,17 @@ const App: React.FC = () => {
               <select
                 className="form-select"
                 value={settings.aiConfig.provider}
-                onChange={(e) => updateAIConfig({ provider: e.target.value as AIConfig['provider'] })}
+                onChange={(e) => updateAIConfig({ provider: e.target.value as AiProvider })}
               >
                 <option value="openai">OpenAI</option>
                 <option value="deepseek">DeepSeek</option>
                 <option value="kimi">Kimi（月之暗面）</option>
+                <option value="zhipu">智谱 GLM</option>
+                <option value="bailian">阿里百炼（DashScope 兼容）</option>
+                <option value="minimax">MiniMax</option>
+                <option value="volcengine">火山方舟（豆包等）</option>
+                <option value="siliconflow">硅基流动</option>
+                <option value="baichuan">百川智能</option>
                 <option value="custom">自定义</option>
               </select>
             </div>
