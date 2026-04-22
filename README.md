@@ -7,12 +7,12 @@
 ## 功能特性
 
 - **表单自动扫描**：自动识别页面中的 Ant Design 表单字段（Input / Textarea / Select / Radio / Checkbox / DatePicker / RangePicker / TimePicker / InputNumber / Cascader / TreeSelect / Switch / Transfer 等 14 类）。
-- **AI 智能生成**：接入 OpenAI / DeepSeek / 任意 OpenAI 兼容接口，依据字段标签、placeholder、校验规则生成贴合语义的中文测试数据。
+- **AI 智能生成**：接入 **OpenAI、DeepSeek、Kimi（月之暗面）** 及国内常用 **OpenAI Chat Completions 兼容** 预设（**智谱 GLM、阿里百炼、MiniMax、火山方舟、硅基流动、百川智能**），也可 **完全自定义** Base URL；依据字段标签、placeholder、校验规则生成贴合语义的中文测试数据。
 - **内置 Mock 规则**：不配 AI 也能直接用，基于关键词的规则覆盖姓名、手机、邮箱、身份证、地址、公司、日期、时间、金额、编号等常见字段，并能从 HTML `pattern` / 中文「只能包含…」提示里反解字符集。
 - **一键填充**：「扫描 → 生成 → 填充」三步合一，也能分步执行便于逐步观察。
 - **多轮纠偏**：填错后会读取红色校验文案（`.ant-form-item-explain-error` / `role=alert` 等）回灌到下一轮生成，自动重填直到通过。
 - **Pro Components / React 受控组件适配**：支持 `@ant-design/pro-components`（ProFormText / ProFormSelect / ProFormDateRangePicker…），绕过 React 受控 `input.value` 劫持正确触发 `onChange`。
-- **兼容 antd 4 / 5+**：同时覆盖两种主版本的 DOM 形态（`.ant-select-selection` vs `.ant-select-selector`、`.ant-select-dropdown-menu-item` vs `.ant-select-item-option` 等）。
+- **兼容 antd 4 / 5+ / 6+**：同时覆盖三种主版本的 DOM 形态（`.ant-select-selection` vs `.ant-select-selector`、`.ant-select-dropdown-menu-item` vs `.ant-select-item-option` 等）。
 
 ## 安装
 
@@ -41,11 +41,25 @@
 
 切到 Popup 右上角的「设置」选项卡即可：
 
-- **OpenAI**：填入 API Key，选择模型（推荐 `gpt-4o-mini`，质量 / 费用 / 速度平衡好）。
-- **DeepSeek**：填入 API Key，API 地址会自动指向 `https://api.deepseek.com`。
-- **自定义**：可配置任何 OpenAI 兼容的 API 接口（同时支持公司内网的模型网关）。
+| 服务商                    | 说明                                                                                                                                    |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **OpenAI**                | 填 API Key；默认 `https://api.openai.com/v1`；模型下拉含 `gpt-4o-mini` 等。                                                             |
+| **DeepSeek**              | 填 API Key；默认 `https://api.deepseek.com`；模型 `deepseek-chat`（V3.2 非思考）/ `deepseek-reasoner`（V3.2 思考），与 [官方文档](https://api-docs.deepseek.com/) 一致。 |
+| **Kimi（月之暗面）**      | 填 API Key；`kimi-k2.6` / `kimi-k2.5` 走 **Anthropic 兼容 `/anthropic`**，其余走 **OpenAI 兼容 `/v1`**（见 `src/shared/moonshot-kimi.ts`）；模型列表见 [Kimi 模型列表](https://platform.kimi.ai/docs/models)。 |
+| **智谱 GLM**              | 填 API Key；默认 `https://open.bigmodel.cn/api/paas/v4`；模型如 `glm-4-flash` / `glm-4-plus` 等。                                       |
+| **阿里百炼（DashScope）** | 填 API Key；默认 `https://dashscope.aliyuncs.com/compatible-mode/v1`；模型如 `qwen-plus` / `qwen-turbo` / `qwen-max`。                  |
+| **MiniMax**               | 填 API Key；默认 `https://api.minimaxi.com/v1`；模型如 `MiniMax-M2` / `abab6.5s-chat`。                                                 |
+| **火山方舟（豆包等）**    | 填 API Key；默认 `https://ark.cn-beijing.volces.com/api/v3`；模型下拉为常见豆包示例名，**以控制台实际推理接入点 / 模型名为准**。        |
+| **硅基流动**              | 填 API Key；默认 `https://api.siliconflow.cn/v1`；模型为 `deepseek-ai/DeepSeek-V3`、`Qwen/...` 等路由名。                               |
+| **百川智能**              | 填 API Key；默认 `https://api.baichuan-ai.com/v1`；模型如 `Baichuan4-Turbo` 等。                                                        |
+| **自定义**                | 任意 OpenAI 兼容 Base URL + 模型名（公司内网网关、火山 `ep-xxxx` 接入点等）。                                                           |
+
+- 各平台 **套餐与模型命名** 会随官方调整，下拉仅为常用默认；更全对比可参考 [AI Coding Plan 对比（国内主流 AI 平台）](https://z4crk6mg95.coze.site/)。
+- **火山方舟**若使用控制台给出的 **接入点 ID**（`ep-xxxx`）作为模型名，或 Base 与默认北京区不一致，请用 **自定义** 填写完整 **API 地址** 与 **模型**。
 
 > 不配 API Key 时，插件会使用内置的 Mock 规则生成数据，对常见字段（姓名、手机、邮箱、身份证、地址、日期、金额、编号等）已有良好支持。AI 主要在「业务专属字段」（如「营销计划名称」「隔离设置」「渠道代码」等需要理解语义才能填对的字段）上显著提升数据质量。
+
+实现细节（`AiProvider`、`response_format` 对 MiniMax 的特例等）见 [DEVELOPMENT.md — AI 服务商与实现](./DEVELOPMENT.md#ai-服务商与实现)。
 
 ## 支持的 Ant Design 组件
 

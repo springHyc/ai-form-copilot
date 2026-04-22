@@ -7,7 +7,7 @@
 - Chrome Extension Manifest V3
 - TypeScript + Vite（多配置构建：Popup / Content Script / Background）
 - React 19（Popup UI，纯 CSS 无 UI 框架，约 207KB 包体）
-- OpenAI / DeepSeek API（可选，不配置则使用内置 Mock 规则）
+- OpenAI 兼容 API（可选：OpenAI / DeepSeek / Kimi 及智谱、百炼、MiniMax、火山方舟、硅基流动、百川等内置预设 + 自定义；不配置则使用内置 Mock 规则）
 - Vitest + jsdom（失败案例回归测试）
 
 ## 从源码构建
@@ -58,6 +58,38 @@ src/
     └── mock-rules.ts   # 内置 Mock 规则引擎（关键词匹配 + crypto 随机 + 时间戳唯一性）
 ```
 
+## AI 服务商与实现
+
+### 类型与存储
+
+- `src/shared/types.ts`：`AiProvider` 联合类型（`openai` | `deepseek` | `kimi` | `zhipu` | `bailian` | `minimax` | `volcengine` | `siliconflow` | `baichuan` | `custom`），`AIConfig.provider` 使用该类型；`Settings.aiConfig` 经 `chrome.storage.local` 持久化。
+
+### Popup 预设（与代码一致）
+
+`src/popup/App.tsx` 内 **`MODEL_PRESETS`**（按服务商分组的模型下拉）与 **`PROVIDER_URLS`**（切换服务商时写入的默认 `baseUrl`）与下表一致；用户仍可手动改「API 地址」输入框（例如换地域、火山 `ep-xxxx` 等）。
+
+| `provider`    | 展示名（约）     | 默认 `baseUrl`（去尾 `/` 后由 `ai-service` 拼 `/chat/completions`）      |
+| ------------- | ---------------- | ------------------------------------------------------------------------ |
+| `openai`      | OpenAI           | `https://api.openai.com/v1`                                              |
+| `deepseek`    | DeepSeek         | `https://api.deepseek.com`                                               |
+| `kimi`        | Kimi（月之暗面） | 见 `moonshot-kimi.ts`：`kimi-k2.6` / `kimi-k2.5` 走 Anthropic 兼容 `/anthropic`，其余走国内 OpenAI 兼容 `/v1` |
+| `zhipu`       | 智谱 GLM         | `https://open.bigmodel.cn/api/paas/v4`                                   |
+| `bailian`     | 阿里百炼         | `https://dashscope.aliyuncs.com/compatible-mode/v1`                      |
+| `minimax`     | MiniMax          | `https://api.minimaxi.com/v1`                                            |
+| `volcengine`  | 火山方舟         | `https://ark.cn-beijing.volces.com/api/v3`                               |
+| `siliconflow` | 硅基流动         | `https://api.siliconflow.cn/v1`                                          |
+| `baichuan`    | 百川智能         | `https://api.baichuan-ai.com/v1`                                         |
+| `custom`      | 自定义           | 空字符串，由用户填写                                                     |
+
+套餐 / 模型命名对照可参考 [AI Coding Plan 对比](https://z4crk6mg95.coze.site/) 等第三方汇总页；**以各云控制台为准**。
+
+### 调用链与协议
+
+- `Popup` 发 `GENERATE_DATA` → `background/index.ts` 调 `generateWithAI(fields, aiConfig)`（`src/shared/ai-service.ts`）。
+- **Kimi**：若 `baseUrl` 判定为 Moonshot Anthropic 风格（见 `isMoonshotAnthropicStyleBase`），走 **`POST {base}/v1/messages`**，请求体为 Anthropic 格式；否则走 OpenAI **`POST {base}/chat/completions`**。
+- **其余内置预设 + `custom`**：统一走 **`POST {baseUrl}/chat/completions`**，`Authorization: Bearer <apiKey>`，与 OpenAI SDK 兼容。
+- **`response_format: { type: 'json_object' }`**：除 **`minimax`** 外均附带（MiniMax 部分兼容层不接受该字段会 400）；MiniMax 仅依赖 system prompt 约束返回 JSON，解析逻辑与其它分支相同。
+
 ## 实现原理
 
 ### 整体架构
@@ -87,7 +119,7 @@ src/
         │  在目标页面注入扫描代码 → 遍历 DOM 中所有顶层 .ant-form-item → 返回字段列表
         ▼
   ② 生成测试数据
-        │  有 API Key → Background 调用 AI 大模型 API（OpenAI / DeepSeek）
+        │  有 API Key → Background 调用 AI 大模型 API（OpenAI 兼容：含内置国内预设等，见上文「AI 服务商与实现」）
         │  无 API Key → Popup 本地调用 mock-rules 基于关键词规则生成
         ▼
   ③ 填充表单
@@ -162,7 +194,7 @@ const topLevel = all.filter(
 AI 只参与「生成测试数据」这一个环节，扫描和填充都是纯 DOM 操作，与 AI 无关。流程如下：
 
 1. 将扫描到的字段信息（标签、类型、选项、约束等）打包成结构化 Prompt
-2. 调用 OpenAI 兼容 API（支持 DeepSeek、GPT-4o-mini 等），启用 JSON Mode 确保返回格式正确
+2. 调用 OpenAI 兼容 API（或 Kimi 的 Anthropic 兼容分支），默认启用 **`response_format: json_object`**（`minimax` 除外，见「AI 服务商与实现」）以约束返回 JSON
 3. 解析 AI 返回的 JSON，每个字段 ID 对应一个生成值
 
 配 AI 与不配 AI 的区别：

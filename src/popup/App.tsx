@@ -64,11 +64,12 @@ const MODEL_PRESETS: Record<AiProvider, { label: string; value: string }[]> = {
     { label: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' },
   ],
   deepseek: [
-    { label: 'DeepSeek V3', value: 'deepseek-chat' },
-    { label: 'DeepSeek R1', value: 'deepseek-reasoner' },
+    { label: 'DeepSeek V3.2 对话（deepseek-chat）', value: 'deepseek-chat' },
+    { label: 'DeepSeek V3.2 思考（deepseek-reasoner）', value: 'deepseek-reasoner' },
   ],
-  /** Kimi（月之暗面 Moonshot），与 OpenAI Chat Completions 兼容 */
+  /** Kimi（月之暗面 Moonshot）；K2.5/K2.6 走 Anthropic 兼容网关，见 moonshot-kimi.ts */
   kimi: [
+    { label: 'Kimi K2.6', value: 'kimi-k2.6' },
     { label: 'Kimi K2.5', value: 'kimi-k2.5' },
     { label: 'moonshot-v1-8k', value: 'moonshot-v1-8k' },
     { label: 'moonshot-v1-32k', value: 'moonshot-v1-32k' },
@@ -108,7 +109,7 @@ const MODEL_PRESETS: Record<AiProvider, { label: string; value: string }[]> = {
 const PROVIDER_URLS: Record<AiProvider, string> = {
   openai: 'https://api.openai.com/v1',
   deepseek: 'https://api.deepseek.com',
-  /** Kimi 默认入口；选中具体模型后再按 kimi-k2.5 / 其它模型切到 anthropic 或 v1 */
+  /** Kimi 默认入口；选中具体模型后再按 kimi-k2.5 / kimi-k2.6 / 其它模型切到 anthropic 或 v1 */
   kimi: MOONSHOT_CN_CHAT_BASE,
   zhipu: 'https://open.bigmodel.cn/api/paas/v4',
   bailian: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
@@ -201,7 +202,7 @@ const App: React.FC = () => {
       if (!result.settings) return;
       let s = result.settings as Settings;
       const ac = s.aiConfig;
-      // 已保存的 Kimi 配置按模型纠正 baseUrl（如 kimi-k2.5 需走 /anthropic）
+      // 已保存的 Kimi 配置按模型纠正 baseUrl（kimi-k2.5 / kimi-k2.6 需走 /anthropic）
       if (ac.provider === 'kimi') {
         const expected = moonshotCnBaseUrlForKimiModel(ac.model);
         const cur = (ac.baseUrl ?? '').replace(/\/$/, '');
