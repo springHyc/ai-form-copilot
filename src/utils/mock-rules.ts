@@ -482,6 +482,11 @@ function inferMaxLenFromHints(text: string): number | undefined {
     /长度不超过(\d{1,4})/,
     /最长(\d{1,4})个?字符/,
     /≤\s*(\d{1,4})\s*个?字符/,
+    /不能超过(\d{1,4})个?字/,
+    /不超过(\d{1,4})个?字/,
+    /至多(\d{1,4})个?字/,
+    /最多(\d{1,4})个?字/,
+    /长度为(\d{1,4})个?字以内/,
   ];
   for (const re of patterns) {
     const m = compact.match(re);
@@ -630,6 +635,32 @@ function randomFromCharset(charset: string, maxLen: number): string {
   let s = "";
   for (let i = 0; i < len; i++) s += charset[randInt(0, charset.length - 1)];
   return s.slice(0, n);
+}
+
+/** 从提示文案中解析「固定 N 位数字」约束（如「长度为11位的数字」） */
+function fixedDigitsLengthFromHints(hints: string): number | undefined {
+  const compact = hints.replace(/\s+/g, "");
+  const patterns = [
+    /长度为(\d{1,3})位(?:的)?数字/,
+    /只能输入长度为(\d{1,3})位(?:的)?数字/,
+    /请输入(\d{1,3})位(?:的)?数字/,
+    /(\d{1,3})位(?:纯)?数字/,
+  ];
+  for (const re of patterns) {
+    const m = compact.match(re);
+    if (!m) continue;
+    const len = Number(m[1]);
+    if (Number.isInteger(len) && len > 0) return len;
+  }
+  return undefined;
+}
+
+/** 生成固定长度数字串（用于「N 位数字」类字段） */
+function randomDigits(len: number): string {
+  const n = Math.max(1, Math.min(len, 64));
+  let s = "";
+  for (let i = 0; i < n; i++) s += String(randInt(0, 9));
+  return s;
 }
 
 /** 是否要求「仅数字与英文字母」类输入 */
@@ -808,6 +839,12 @@ export function generateMockData(fields: FormFieldInfo[]): FillData {
         data[field.id] = randomFromCharset(charset, cap);
         continue;
       }
+      // 先吃「固定 N 位数字」约束，避免 label 含「号码/编号」时误走 randomCode。
+      const fixedDigitsLen = fixedDigitsLengthFromHints(hints);
+      if (fixedDigitsLen !== undefined) {
+        data[field.id] = randomDigits(fixedDigitsLen);
+        continue;
+      }
       if (wantsAlphanumeric(hints)) {
         const maxLen =
           field.constraints?.maxLength ?? inferMaxLenFromHints(hints);
@@ -881,7 +918,18 @@ export function generateMockData(fields: FormFieldInfo[]): FillData {
     // 通过 label 关键词匹配
     const matched = LABEL_RULES.find(([pattern]) => pattern.test(field.label));
     if (matched) {
-      data[field.id] = matched[1]();
+      const generated = matched[1]();
+      const maxLen = field.constraints?.maxLength ?? inferMaxLenFromHints(hints);
+      if (
+        typeof generated === "string" &&
+        maxLen !== undefined &&
+        maxLen > 0 &&
+        generated.length > maxLen
+      ) {
+        data[field.id] = generated.slice(0, maxLen);
+      } else {
+        data[field.id] = generated;
+      }
       continue;
     }
 
@@ -910,7 +958,8 @@ export function generateMockData(fields: FormFieldInfo[]): FillData {
     }
 
     const v = data[field.id];
-    const maxLen = field.constraints?.maxLength;
+    // 兜底：若 DOM 未给出 maxlength，也要吃到 validationError/ruleHints 里的长度约束（如「不能超过10个字」）。
+    const maxLen = field.constraints?.maxLength ?? inferMaxLenFromHints(hints);
     if (
       typeof v === "string" &&
       maxLen !== undefined &&
