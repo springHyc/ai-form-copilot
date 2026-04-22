@@ -24,7 +24,7 @@
 - **测试文件重命名**：`src/__tests__/marketing-plan-failure-cases.test.ts` → `src/__tests__/failure-cases.test.ts`（`git mv` 保留历史）。文件已从「营销计划单页回归」扩成 scan / mock / fill / popup 四侧失败案例合集，`README.md`、`CHANGELOG.md`、`.cursor/skills/ai-form-failure-case/SKILL.md` 的引用路径同步更新。
 - **文档拆分**：`README.md` 改为**使用文档**（功能、安装 zip / 源码、用法、AI 设置、组件支持表、反馈入口）；新增 **`DEVELOPMENT.md`** 承载技术栈、源码构建、项目结构、实现原理、测试、`build:prod*` / `pack:dist` / `publish:tag` 发版流程及失败案例模板；两份文档互链，避免用户与贡献者混读。
 - **AI**：设置增智谱/百炼/MiniMax/方舟/硅基/百川（`AiProvider` + 默认 Base）；Kimi 增 `kimi-k2.6` 且与 K2.5 同走 `/anthropic`；DeepSeek 下拉标 V3.2；MiniMax 省略 `response_format`；README / DEVELOPMENT 同步。
-- **发版**：`DEVELOPMENT.md` 写明 `pack:dist` 后再 `git push` / `git push origin tag`；`publish-tag.mjs` 推送前打日志。
+- **发版（`publish-tag`）**：在 `git push` 前增加 **`git add releases/`** 并与 `package.json` / `package-lock.json` **同一 commit**，避免 `releases/*.zip` 未入库；文档说明 `releases/` 勿进 `.gitignore`。
 
 ### 测试
 

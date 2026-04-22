@@ -18,7 +18,7 @@
 
 ### 方式 1：下载已构建的 zip（推荐）
 
-1. 到 [releases/ 目录](https://gitlab-hlw.shuqudata.com/bairong/ai-form-copilot/-/tree/main/releases) 下载最新的 `ai-form-copilot@<version>-<YYYYMMDD-HHmmss>.zip`。
+1. 到仓库 [releases/ 目录](https://gitlab-hlw.shuqudata.com/bairong/ai-form-copilot/-/tree/main/releases) 下载最新的 `ai-form-copilot@<version>-<YYYYMMDD-HHmmss>.zip`（由维护者执行 `npm run build:prod*` 生成；脚本会在 **push 前** 将 `releases/` 与版本号 `git add` 并 `commit`，详见 [DEVELOPMENT.md](./DEVELOPMENT.md) 中的「发布流程」一节）。
 2. 解压到任意本地目录（确认目录里有 `manifest.json`）。
 3. 打开 Chrome，访问 `chrome://extensions/`，开启右上角「开发者模式」。
 4. 点击「加载已解压的扩展程序」，选择第 2 步解压出来的整个文件夹。

@@ -5,7 +5,7 @@
  * 设计要点：
  *   - 以 `cd dist && zip -r <tmp> .` 打包，压缩包内不会多一层 dist/ 目录（解压即 Chrome 扩展目录）；
  *   - 先把 zip 写到仓库根的临时文件，再 rename 进 releases/，避免与构建产物或 zip 自身冲突；
- *   - releases/ 独立于 dist/，`npm run build` 不会清理；同一版本多次打包会按时间戳累积，便于比对历史产物。
+ *   - releases/ 独立于 dist/，`npm run build` 不会清理；同一版本多次打包会按时间戳累积。发版时由 `publish-tag.mjs` 将 `releases/` `git add` 进库（请勿把 releases/ 写进 .gitignore，除非团队明确不提交 zip）。
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { execSync } from 'node:child_process';
