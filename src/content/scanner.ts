@@ -187,6 +187,11 @@ function inferMaxLenFromHints(text: string): number | undefined {
     /长度不超过(\d{1,4})/,
     /最长(\d{1,4})个?字符/,
     /≤\s*(\d{1,4})\s*个?字符/,
+    /不能超过(\d{1,4})个?字/,
+    /不超过(\d{1,4})个?字/,
+    /至多(\d{1,4})个?字/,
+    /最多(\d{1,4})个?字/,
+    /长度为(\d{1,4})个?字以内/,
   ];
   for (const re of patterns) {
     const m = compact.match(re);

@@ -448,6 +448,58 @@ describe("失败案例 6：渠道代码（企业金融）（input，须字母数
   });
 });
 
+describe("失败案例 11：注册号码（input，报错要求 11 位数字）", () => {
+  it("validationError 含「长度为11位的数字」时应优先生成 11 位纯数字，不被 label「号码」误导为 randomCode", () => {
+    const field: FormFieldInfo = {
+      id: "field_reg",
+      label: "注册号码",
+      type: "input",
+      required: true,
+      validationError: "只能输入长度为11位的数字",
+    };
+    const data = generateMockData([field]);
+    const v = String(data[field.id] ?? "");
+    expect(v).toMatch(/^\d{11}$/);
+  });
+});
+
+describe("失败案例 12：内部备注名（input，不能超过10个字）", () => {
+  it("扫描含「不能超过10个字（不含空格）」的报错时，应推断 maxLength=10", () => {
+    mountVisibleForm(`
+      <div class="ant-form-item ant-form-item-has-error">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label>内部备注名</label></div>
+          <div class="ant-form-item-control">
+            <input class="ant-input" type="text" value="测试备注_5hqo_727" aria-invalid="true" aria-describedby="inner_name_help" />
+          </div>
+        </div>
+        <div id="inner_name_help" class="ant-form-item-explain ant-form-item-explain-connected" role="alert">
+          <div class="ant-form-item-explain-error">内部备注名不能超过10个字（不含空格）</div>
+        </div>
+      </div>
+    `);
+    const fields = scanFormFields();
+    expect(fields).toHaveLength(1);
+    expect(fields[0].label).toBe("内部备注名");
+    expect(fields[0].validationError).toContain("不能超过10个字");
+    expect(fields[0].constraints?.maxLength).toBe(10);
+  });
+
+  it("generateMockData 应尊重该约束，生成长度不超过 10 的值", () => {
+    const field: FormFieldInfo = {
+      id: "field_inner_remark",
+      label: "内部备注名",
+      type: "input",
+      required: true,
+      validationError: "内部备注名不能超过10个字（不含空格）",
+    };
+    const data = generateMockData([field]);
+    const v = String(data[field.id] ?? "");
+    expect(v.length).toBeLessThanOrEqual(10);
+    expect(v.trim().length).toBeGreaterThan(0);
+  });
+});
+
 describe("失败案例 7：产品类型（antd 4 Select，须能点开并点选 menu-item）", () => {
   it("扫描：Select 当前为「请选择...」时，currentValue / options 均应视为未填（避免一键填充跳过）", () => {
     mountVisibleForm(`
