@@ -1,4 +1,12 @@
-import type { AIConfig, FillData, FormFieldInfo } from './types';
+import type {
+  AIConfig,
+  FieldMappingResult,
+  FillData,
+  FormFieldInfo,
+  IssueCategoryNode,
+  IssueClassificationResult,
+  PastedTextSlots,
+} from './types';
 
 /** 消息类型枚举 */
 export enum MessageType {
@@ -14,6 +22,14 @@ export enum MessageType {
   FILL_FORM = 'FILL_FORM',
   /** Content -> Background -> Popup: 填充完成 */
   FILL_RESULT = 'FILL_RESULT',
+  /** Background -> Content: 等待联动字段渲染后返回最新扫描结果 */
+  WAIT_LINKED_FIELDS = 'WAIT_LINKED_FIELDS',
+  /** Content -> Background: 联动字段等待结果 */
+  WAIT_LINKED_FIELDS_RESULT = 'WAIT_LINKED_FIELDS_RESULT',
+  /** Popup -> Background: 粘贴文本直填 */
+  PASTE_TEXT_FILL = 'PASTE_TEXT_FILL',
+  /** Background -> Popup: 粘贴文本直填结果 */
+  PASTE_TEXT_FILL_RESULT = 'PASTE_TEXT_FILL_RESULT',
   /** 通用错误 */
   ERROR = 'ERROR',
 }
@@ -49,6 +65,36 @@ export interface FillResultMessage {
   filledCount: number;
 }
 
+export interface WaitLinkedFieldsMessage {
+  type: MessageType.WAIT_LINKED_FIELDS;
+  expectedLabels: string[];
+  timeoutMs?: number;
+  pollMs?: number;
+}
+
+export interface WaitLinkedFieldsResultMessage {
+  type: MessageType.WAIT_LINKED_FIELDS_RESULT;
+  fields: FormFieldInfo[];
+  timedOut: boolean;
+}
+
+export interface PasteTextFillMessage {
+  type: MessageType.PASTE_TEXT_FILL;
+  text: string;
+  fields: FormFieldInfo[];
+  issueTree?: IssueCategoryNode[];
+}
+
+export interface PasteTextFillResultMessage {
+  type: MessageType.PASTE_TEXT_FILL_RESULT;
+  success: boolean;
+  filledCount: number;
+  data: FillData;
+  mappings: FieldMappingResult[];
+  slots: PastedTextSlots;
+  classification?: IssueClassificationResult;
+}
+
 export interface ErrorMessage {
   type: MessageType.ERROR;
   error: string;
@@ -61,4 +107,8 @@ export type Message =
   | GenerateResultMessage
   | FillFormMessage
   | FillResultMessage
+  | WaitLinkedFieldsMessage
+  | WaitLinkedFieldsResultMessage
+  | PasteTextFillMessage
+  | PasteTextFillResultMessage
   | ErrorMessage;

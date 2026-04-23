@@ -2,6 +2,7 @@ import { MessageType } from '@/shared/messages';
 import type { FillFormMessage, GenerateDataMessage, Message } from '@/shared/messages';
 import { generateWithAI } from '@/shared/ai-service';
 import { generateMockData } from '@/utils/mock-rules';
+import { handlePasteTextFillMessage } from './paste-fill-handler';
 
 /** 获取当前活跃标签页 */
 async function getActiveTab(): Promise<chrome.tabs.Tab> {
@@ -251,6 +252,15 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
         case MessageType.FILL_FORM: {
           const tab = await getActiveTab();
           const result = await sendToContentWithFallback(tab.id!, message);
+          sendResponse(result);
+          break;
+        }
+
+        case MessageType.PASTE_TEXT_FILL: {
+          const result = await handlePasteTextFillMessage(message, {
+            getActiveTab,
+            sendToContentWithFallback,
+          });
           sendResponse(result);
           break;
         }

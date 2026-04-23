@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS } from '@/shared/types';
 import { MOONSHOT_CN_CHAT_BASE, moonshotCnBaseUrlForKimiModel } from '@/shared/moonshot-kimi';
 import { toUserFacingAiCallError } from '@/shared/ai-service';
 import { generateMockData } from '@/utils/mock-rules';
+import { buildPasteFillSummary, type PasteFillSummary } from '@/paste-fill/baseline-summary';
 
 import './style.css';
 
@@ -188,6 +189,9 @@ const App: React.FC = () => {
   const [scanning, setScanning] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [filling, setFilling] = useState(false);
+  const [pasteFilling, setPasteFilling] = useState(false);
+  const [pastedText, setPastedText] = useState('');
+  const [pasteSummary, setPasteSummary] = useState<PasteFillSummary | null>(null);
   const [activeTab, setActiveTab] = useState<'main' | 'settings'>('main');
 
   const toast = useToast();
@@ -483,8 +487,64 @@ const App: React.FC = () => {
     }
   }, [generateData, toast]);
 
-  const isLoading = scanning || generating || filling;
-  const loadingText = scanning ? '扫描中...' : generating ? '生成中...' : filling ? '填充中...' : '';
+  const handlePasteFill = useCallback(async () => {
+    if (!pastedText.trim()) {
+      toast.warning('请先粘贴文本');
+      return;
+    }
+    setPasteFilling(true);
+    try {
+      let availableFields = fields;
+      if (availableFields.length === 0) {
+        const scanResponse = await chrome.runtime.sendMessage({ type: MessageType.SCAN_FORM });
+        if (!scanResponse || scanResponse.type === MessageType.ERROR) {
+          toast.error(scanResponse?.error ?? '扫描失败');
+          return;
+        }
+        availableFields = scanResponse.fields || [];
+        setFields(availableFields);
+      }
+
+      if (availableFields.length === 0) {
+        toast.warning('未发现可填充字段');
+        return;
+      }
+
+      const response = await chrome.runtime.sendMessage({
+        type: MessageType.PASTE_TEXT_FILL,
+        text: pastedText,
+        fields: availableFields,
+      });
+      if (!response) {
+        toast.error('粘贴填充失败：无响应');
+        return;
+      }
+      if (response.type === MessageType.ERROR) {
+        toast.error(response.error);
+        return;
+      }
+
+      setFillData(response.data || {});
+      setPasteSummary(buildPasteFillSummary(response.mappings || []));
+      toast.success(`粘贴填充完成：成功 ${response.filledCount} 个字段`);
+    } catch (error) {
+      console.error('[AI Form Copilot] Popup 粘贴填充失败:', error);
+      toast.error(error instanceof Error ? error.message : '粘贴填充失败');
+    } finally {
+      setPasteFilling(false);
+    }
+  }, [fields, pastedText, toast]);
+
+  const isLoading = scanning || generating || filling || pasteFilling;
+  const loadingText = scanning
+    ? '扫描中...'
+    : generating
+      ? '生成中...'
+      : filling
+        ? '填充中...'
+        : pasteFilling
+          ? '粘贴填充中...'
+          : '';
 
   return (
     <>
@@ -523,6 +583,41 @@ const App: React.FC = () => {
               >
                 {isLoading ? <><span className="spinner" /> {loadingText}</> : <><Icon.Rocket /> 一键智能填充</>}
               </button>
+
+              <div className="card">
+                <div className="card-header">粘贴文本直填（新功能）</div>
+                <div className="card-body paste-fill-panel">
+                  <textarea
+                    className="form-input paste-textarea"
+                    placeholder="粘贴微信聊天文本，例如：姓名 手机号 客诉内容 ..."
+                    value={pastedText}
+                    onChange={(e) => setPastedText(e.target.value)}
+                    rows={5}
+                  />
+                  <button
+                    className="btn btn-sm btn-primary"
+                    onClick={handlePasteFill}
+                    disabled={pasteFilling}
+                  >
+                    {pasteFilling ? <><span className="spinner" /> 粘贴填充中</> : <>按粘贴文本填表</>}
+                  </button>
+                  {pasteSummary && (
+                    <div className="paste-fill-summary">
+                      <div className="paste-fill-summary-line">
+                        自动填充 {pasteSummary.autoFilled}/{pasteSummary.totalMappings}，留空 {pasteSummary.skipped}
+                      </div>
+                      <div className="paste-fill-summary-line">
+                        平均置信度 {(pasteSummary.averageConfidence * 100).toFixed(0)}%，低置信 {pasteSummary.lowConfidenceCount} 项
+                      </div>
+                      {pasteSummary.topSkipReasons.length > 0 && (
+                        <div className="paste-fill-summary-line">
+                          主要留空原因：{pasteSummary.topSkipReasons.join('；')}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
 
               {/* 分步操作 */}
               <div className="btn-group">

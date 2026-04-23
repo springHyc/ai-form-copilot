@@ -158,6 +158,36 @@ body {
   padding: 4px 0;
 }
 
+.paste-fill-panel {
+  max-height: none;
+  overflow: visible;
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.paste-textarea {
+  min-height: 104px;
+  resize: vertical;
+}
+
+.paste-fill-summary {
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  background: #fafafa;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.paste-fill-summary-line {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #595959;
+}
+
 /* === 字段列表 === */
 .field-item {
   display: flex;
