@@ -26,6 +26,10 @@ export enum MessageType {
   WAIT_LINKED_FIELDS = 'WAIT_LINKED_FIELDS',
   /** Content -> Background: 联动字段等待结果 */
   WAIT_LINKED_FIELDS_RESULT = 'WAIT_LINKED_FIELDS_RESULT',
+  /** Background -> Content: 查询当前页是否走「产品→资金方」两阶段粘贴填充 */
+  PASTE_FILL_PAGE_CONTEXT = 'PASTE_FILL_PAGE_CONTEXT',
+  /** Content -> Background: 粘贴填充页面语境 */
+  PASTE_FILL_PAGE_CONTEXT_RESULT = 'PASTE_FILL_PAGE_CONTEXT_RESULT',
   /** Popup -> Background: 粘贴文本直填 */
   PASTE_TEXT_FILL = 'PASTE_TEXT_FILL',
   /** Background -> Popup: 粘贴文本直填结果 */
@@ -78,6 +82,16 @@ export interface WaitLinkedFieldsResultMessage {
   timedOut: boolean;
 }
 
+export interface PasteFillPageContextMessage {
+  type: MessageType.PASTE_FILL_PAGE_CONTEXT;
+}
+
+export interface PasteFillPageContextResultMessage {
+  type: MessageType.PASTE_FILL_PAGE_CONTEXT_RESULT;
+  /** 为 true 时：粘贴文本填充首阶段跳过资金方并等待联动后再填资金方（仅客服/客诉工单面包屑页） */
+  useCsComplaintTicketProductFunderLinkage: boolean;
+}
+
 export interface PasteTextFillMessage {
   type: MessageType.PASTE_TEXT_FILL;
   text: string;
@@ -109,6 +123,8 @@ export type Message =
   | FillResultMessage
   | WaitLinkedFieldsMessage
   | WaitLinkedFieldsResultMessage
+  | PasteFillPageContextMessage
+  | PasteFillPageContextResultMessage
   | PasteTextFillMessage
   | PasteTextFillResultMessage
   | ErrorMessage;

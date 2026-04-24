@@ -1,6 +1,12 @@
 import { MessageType } from '@/shared/messages';
-import type { FillFormMessage, ScanFormMessage, WaitLinkedFieldsMessage } from '@/shared/messages';
+import type {
+  FillFormMessage,
+  PasteFillPageContextMessage,
+  ScanFormMessage,
+  WaitLinkedFieldsMessage,
+} from '@/shared/messages';
 import { fillFormFields } from './antd-adapter';
+import { isCsComplaintTicketBreadcrumbContext } from './cs-complaint-ticket-page';
 import { waitForLinkedFields } from './paste-fill-linked-state';
 import { scanFormFields } from './scanner';
 
@@ -9,7 +15,24 @@ if (!(window as any).__AI_FORM_COPILOT_LOADED__) {
   (window as any).__AI_FORM_COPILOT_LOADED__ = true;
 
   chrome.runtime.onMessage.addListener(
-    (message: ScanFormMessage | FillFormMessage | WaitLinkedFieldsMessage, _sender, sendResponse) => {
+    (
+      message: ScanFormMessage | FillFormMessage | WaitLinkedFieldsMessage | PasteFillPageContextMessage,
+      _sender,
+      sendResponse,
+    ) => {
+      if (message.type === MessageType.PASTE_FILL_PAGE_CONTEXT) {
+        try {
+          sendResponse({
+            type: MessageType.PASTE_FILL_PAGE_CONTEXT_RESULT,
+            useCsComplaintTicketProductFunderLinkage: isCsComplaintTicketBreadcrumbContext(),
+          });
+        } catch (e) {
+          console.error('[AI Form Copilot] Content 粘贴页语境查询失败:', e);
+          sendResponse({ type: MessageType.ERROR, error: e instanceof Error ? e.message : String(e) });
+        }
+        return true;
+      }
+
       if (message.type === MessageType.SCAN_FORM) {
         try {
           const fields = scanFormFields();

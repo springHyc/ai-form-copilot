@@ -5,6 +5,7 @@ import type {
 } from '@/shared/types';
 import type {
   Message,
+  PasteFillPageContextResultMessage,
   PasteTextFillMessage,
   PasteTextFillResultMessage,
 } from '@/shared/messages';
@@ -17,6 +18,14 @@ interface PasteFillHandlerDeps {
 
 function mergeFillData(base: FillData, next: FillData): FillData {
   return { ...base, ...next };
+}
+
+function isPasteFillPageContextResult(value: unknown): value is PasteFillPageContextResultMessage {
+  return (
+    Boolean(value) &&
+    typeof value === 'object' &&
+    (value as { type?: string }).type === MessageType.PASTE_FILL_PAGE_CONTEXT_RESULT
+  );
 }
 
 async function scanFields(
@@ -50,6 +59,30 @@ export async function handlePasteTextFillMessage(
   const tab = await deps.getActiveTab();
   const tabId = tab.id!;
   const initialFields = message.fields.length > 0 ? message.fields : await scanFields(deps, tabId);
+
+  const pageCtx = await deps.sendToContentWithFallback<unknown>(tabId, {
+    type: MessageType.PASTE_FILL_PAGE_CONTEXT,
+  });
+  const useCsComplaintTicketProductFunderLinkage =
+    isPasteFillPageContextResult(pageCtx) &&
+    pageCtx.useCsComplaintTicketProductFunderLinkage === true;
+
+  if (!useCsComplaintTicketProductFunderLinkage) {
+    const plan = buildPastedTextMappingPlan(initialFields, message.text, {
+      issueTree: message.issueTree,
+      includeFunder: true,
+    });
+    const filledCount = await fillDataInPage(deps, tabId, plan.data);
+    return {
+      type: MessageType.PASTE_TEXT_FILL_RESULT,
+      success: true,
+      filledCount,
+      data: plan.data,
+      mappings: plan.mappings,
+      slots: plan.slots,
+      classification: plan.classification,
+    };
+  }
 
   const firstPlan = buildPastedTextMappingPlan(initialFields, message.text, {
     issueTree: message.issueTree,

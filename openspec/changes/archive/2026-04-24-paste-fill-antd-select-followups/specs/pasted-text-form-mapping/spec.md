@@ -1,26 +1,5 @@
 ## ADDED Requirements
 
-### Requirement: System SHALL map pasted free text to form fields conservatively
-系统 MUST 支持用户粘贴单段自由文本，并将文本解析为字段候选后映射到表单字段。对低置信字段，系统 MUST 留空而非强制填充。
-
-#### Scenario: Conservative mapping leaves uncertain fields empty
-- **WHEN** 用户粘贴的文本无法高置信匹配某个目标字段
-- **THEN** 系统不填充该字段，并保留给人工补录
-
-### Requirement: System SHALL apply single-phone dual-fill rule
-当粘贴文本中仅识别到一个合法手机号时，系统 MUST 同时填充 `来电号码` 与 `注册号码` 为同一号码。
-
-#### Scenario: One phone number fills both phone fields
-- **WHEN** 文本中仅提取到一个合法手机号
-- **THEN** `来电号码` 与 `注册号码` 均被填充为该手机号
-
-### Requirement: System SHALL match closed-option fields by legal options only
-对于 `工单来源`、`端口`、`产品名称`、`资金方` 等封闭选项字段，系统 MUST 仅在命中当前字段合法选项时填充；未命中时 MUST 留空。
-
-#### Scenario: Closed-option field is skipped when no legal option matches
-- **WHEN** 候选值无法匹配字段可选项
-- **THEN** 系统不选择任何选项，并记录该字段为未自动填充
-
 ### Requirement: System SHALL fill product-to-funder linkage in staged order only on CS complaint ticket pages
 对「`产品名称` → `资金方`」依赖联动渲染的粘贴文本填充，系统 MUST 仅在**客服/客诉工单面包屑语境**下采用两阶段策略：先映射并填充上游（含 `产品名称` 等），首阶段映射 MAY 将 `资金方` 记为留空并附原因「第一阶段跳过资金方，等待产品联动」；随后 MUST 等待联动字段就绪后再单独尝试 `资金方` 的映射与填充。
 

@@ -461,74 +461,52 @@ describe("失败案例 11：注册号码（input，报错要求 11 位数字）"
     const v = String(data[field.id] ?? "");
     expect(v).toMatch(/^\d{11}$/);
   });
+});
 
-  it("fillFormFields：仅当 label 全名为「注册号码」时填完会再点一次输入区域（含 affix）以触发 uid 反显", async () => {
+describe("fillFormFields：末尾焦点", () => {
+  it("面包屑为客服管理系统/客诉管理/工单详情且存在「注册号码」时整轮填完后焦点落在该 input", async () => {
+    const prevTitle = document.title;
+    document.title = "工单详情";
+    mountVisibleForm(`
+      <nav class="ant-breadcrumb" style="margin:12px 0;display:flex;z-index:150;">
+        <ol>
+          <li><span class="ant-breadcrumb-link"><a href="/index">客服管理系统</a></span><span class="ant-breadcrumb-separator">/</span></li>
+          <li><span class="ant-breadcrumb-link">客诉管理</span><span class="ant-breadcrumb-separator">/</span></li>
+          <li><span class="ant-breadcrumb-link">工单详情</span><span class="ant-breadcrumb-separator">/</span></li>
+        </ol>
+      </nav>
+      <div class="ant-form-item">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label>注册号码</label></div>
+          <div class="ant-form-item-control">
+            <input id="reg-num-focus-test" class="ant-input" type="text" value="" />
+          </div>
+        </div>
+      </div>
+    `);
+    const input = document.querySelector<HTMLInputElement>("#reg-num-focus-test")!;
+    await fillFormFields([], { field_0: "13800138000" });
+    expect(document.activeElement).toBe(input);
+    document.title = prevTitle;
+  });
+
+  it("无客服/客诉/工单末级面包屑时不在末尾强 focus「注册号码」", async () => {
+    const prevTitle = document.title;
+    document.title = "工单详情";
     mountVisibleForm(`
       <div class="ant-form-item">
         <div class="ant-row">
           <div class="ant-form-item-label"><label>注册号码</label></div>
           <div class="ant-form-item-control">
-            <span class="ant-input-affix-wrapper">
-              <input class="ant-input" type="text" value="" />
-            </span>
+            <input id="reg-num-no-focus" class="ant-input" type="text" value="" />
           </div>
         </div>
       </div>
     `);
-    const wrap = document.querySelector<HTMLElement>(".ant-input-affix-wrapper")!;
-    const input = wrap.querySelector<HTMLInputElement>("input.ant-input")!;
-    const clicks = vi.fn();
-    wrap.addEventListener("click", clicks);
+    const input = document.querySelector<HTMLInputElement>("#reg-num-no-focus")!;
     await fillFormFields([], { field_0: "13800138000" });
-    expect(input.value).toBe("13800138000");
-    expect(clicks.mock.calls.length).toBeGreaterThan(0);
-  });
-
-  it("fillFormFields：label 列无 <label> 子节点时仍能识别「注册号码」并对 input 追加点击", async () => {
-    mountVisibleForm(`
-      <div class="ant-form-item">
-        <div class="ant-row">
-          <div class="ant-form-item-label">
-            <span class="ant-form-item-no-colon">注册号码</span>
-          </div>
-          <div class="ant-form-item-control">
-            <input class="ant-input" type="text" value="" />
-          </div>
-        </div>
-      </div>
-    `);
-    const input = document.querySelector<HTMLInputElement>(".ant-input")!;
-    const clicks = vi.fn();
-    input.addEventListener("click", clicks);
-    await fillFormFields([], { field_0: "13800138000" });
-    expect(input.value).toBe("13800138000");
-    expect(clicks.mock.calls.length).toBeGreaterThan(0);
-  });
-
-  it("fillFormFields：data 为空但 DOM 已有注册号码时批次末尾仍会触发点击（对齐工单页 ant-row + ant-col）", async () => {
-    mountVisibleForm(`
-      <div class="ant-form-item ant-form-item-has-success">
-        <div class="ant-row ant-form-item-row">
-          <div class="ant-col ant-col-8 ant-form-item-label">
-            <label for="customer-detail-top-add_regPhone" class="ant-form-item-required" title="注册号码">注册号码</label>
-          </div>
-          <div class="ant-col ant-col-16 ant-form-item-control">
-            <div class="ant-form-item-control-input">
-              <div class="ant-form-item-control-input-content">
-                <input id="customer-detail-top-add_regPhone" class="ant-input ant-input-status-success" type="text" value="13377789003" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `);
-    const input = document.querySelector<HTMLInputElement>(
-      "#customer-detail-top-add_regPhone",
-    )!;
-    const clicks = vi.fn();
-    input.addEventListener("click", clicks);
-    await fillFormFields([], {});
-    expect(clicks.mock.calls.length).toBeGreaterThan(0);
+    expect(document.activeElement).not.toBe(input);
+    document.title = prevTitle;
   });
 });
 
@@ -782,6 +760,97 @@ describe("失败案例 7：产品类型（antd 4 Select，须能点开并点选 
         .querySelector<HTMLElement>(".ant-select-selection-selected-value")
         ?.textContent,
     ).toContain("乐通分期");
+  });
+
+  it("fillSelect：无 showSearch / 无可见搜索框时不灌字，仅在下拉里逐项匹配（资金方 + 编码后缀）", async () => {
+    mountVisibleForm(`
+      <div class="ant-form-item">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label>资金方</label></div>
+          <div class="ant-form-item-control">
+            <div class="ant-select ant-select-single ant-select-enabled">
+              <div class="ant-select-selection ant-select-selection--single" tabindex="0">
+                <div class="ant-select-selection__rendered">
+                  <div class="ant-select-selection-placeholder">请选择</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+    const dd = document.createElement("div");
+    dd.className = "ant-select-dropdown";
+    dd.innerHTML = `
+      <ul role="listbox" class="ant-select-dropdown-menu">
+        <li role="option" class="ant-select-dropdown-menu-item">请选择资金方</li>
+        <li role="option" class="ant-select-dropdown-menu-item">昊悦-长银(901)</li>
+      </ul>
+    `;
+    document.body.appendChild(dd);
+    const rendered = document.querySelector<HTMLElement>(
+      ".ant-select-selection__rendered",
+    )!;
+    dd.querySelectorAll<HTMLElement>(".ant-select-dropdown-menu-item").forEach((opt) => {
+      const t = opt.textContent?.trim() ?? "";
+      if (t.startsWith("请")) return;
+      opt.addEventListener("click", () => {
+        rendered.innerHTML = `<div class="ant-select-selection-selected-value" title="${t}">${t}</div>`;
+      });
+    });
+    const filled = await fillFormFields([], { field_0: "昊悦-长银" });
+    expect(filled).toBe(1);
+    expect(
+      document
+        .querySelector<HTMLElement>(".ant-select-selection-selected-value")
+        ?.textContent,
+    ).toContain("昊悦");
+  });
+
+  it("fillSelect：工单来源须命中完整「端外客服反馈(自用)」（全局匹配不截断），不得误选较短「端外客服反馈」", async () => {
+    mountVisibleForm(`
+      <div class="ant-form-item">
+        <div class="ant-row">
+          <div class="ant-form-item-label"><label>工单来源</label></div>
+          <div class="ant-form-item-control">
+            <div class="ant-select ant-select-single ant-select-enabled">
+              <div class="ant-select-selection ant-select-selection--single" tabindex="0">
+                <div class="ant-select-selection__rendered">
+                  <div class="ant-select-selection-placeholder">请选择</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `);
+    const dd = document.createElement("div");
+    dd.className = "ant-select-dropdown";
+    dd.innerHTML = `
+      <ul role="listbox" class="ant-select-dropdown-menu">
+        <li role="option" class="ant-select-dropdown-menu-item">请选择工单来源</li>
+        <li role="option" class="ant-select-dropdown-menu-item">端外客服反馈</li>
+        <li role="option" class="ant-select-dropdown-menu-item">端外客服反馈(自用)</li>
+      </ul>
+    `;
+    document.body.appendChild(dd);
+    const rendered = document.querySelector<HTMLElement>(
+      ".ant-select-selection__rendered",
+    )!;
+    dd.querySelectorAll<HTMLElement>(".ant-select-dropdown-menu-item").forEach((opt) => {
+      const t = opt.textContent?.trim() ?? "";
+      if (t.startsWith("请")) return;
+      opt.addEventListener("click", () => {
+        rendered.innerHTML = `<div class="ant-select-selection-selected-value" title="${t}">${t}</div>`;
+      });
+    });
+    const filled = await fillFormFields([], { field_0: "端外客服反馈(自用)" });
+    expect(filled).toBe(1);
+    expect(
+      document
+        .querySelector<HTMLElement>(".ant-select-selection-selected-value")
+        ?.textContent,
+    ).toContain("(自用)");
   });
 
   it("fillSelect：antd 4 可搜索 Select 必须点 menu-item 提交（不能只停在搜索框）", async () => {

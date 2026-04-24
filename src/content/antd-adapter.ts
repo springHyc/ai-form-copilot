@@ -5,6 +5,7 @@ import {
   isTimeOnlyPickerEl,
 } from "./scanner";
 import { fillCascaderWithPath } from "./paste-fill-cascader";
+import { isCsComplaintTicketBreadcrumbContext } from "./cs-complaint-ticket-page";
 
 /**
  * 触发 React 受控组件的值变更。
@@ -74,17 +75,7 @@ function simulateClick(element: HTMLElement) {
 
 /**
  * 尽量贴近真实指针：rc-select / React 常监听 mousedown；末尾再调原生 click 提高受控 Select 的命中率。
- * 不传 view：jsdom / 多 frame 下 globalThis.window 与节点 ownerDocument.defaultView 不一致会抛错。
  */
-function mouseInitAtElementCenter(el: HTMLElement): MouseEventInit {
-  const r = el.getBoundingClientRect();
-  const clientX = r.left + Math.max(1, r.width / 2);
-  const clientY = r.top + Math.max(1, r.height / 2);
-  // 不传 view：jsdom 下 ownerDocument.defaultView 可能不满足 MouseEvent 对 Window 的校验；
-  // 真实页面主要依赖 clientX/clientY，与无坐标的 simulatePointerClick 注释一致。
-  return { bubbles: true, cancelable: true, clientX, clientY };
-}
-
 function simulatePointerClick(element: HTMLElement) {
   const evInit: MouseEventInit = { bubbles: true, cancelable: true };
   const ptrInit: PointerEventInit = {
@@ -108,31 +99,7 @@ function simulatePointerClick(element: HTMLElement) {
   if (typeof element.click === "function") element.click();
 }
 
-/** 带视口坐标，部分业务 onMouseDown/onClick 依赖 clientX/Y */
-function simulatePointerClickAtCenter(element: HTMLElement) {
-  const evInit = mouseInitAtElementCenter(element);
-  const ptrInit: PointerEventInit = {
-    ...evInit,
-    pointerId: 1,
-    pointerType: "mouse",
-  };
-  try {
-    element.dispatchEvent(new PointerEvent("pointerdown", ptrInit));
-  } catch {
-    /* jsdom 等环境可能无 PointerEvent */
-  }
-  element.dispatchEvent(new MouseEvent("mousedown", evInit));
-  try {
-    element.dispatchEvent(new PointerEvent("pointerup", ptrInit));
-  } catch {
-    /* ignore */
-  }
-  element.dispatchEvent(new MouseEvent("mouseup", evInit));
-  element.dispatchEvent(new MouseEvent("click", evInit));
-  if (typeof element.click === "function") element.click();
-}
-
-/** 与 fillPlainInput 同一解析顺序，供填后联动点击等复用 */
+/** 与 fillPlainInput 同一解析顺序：affix 包裹或裸 `input.ant-input` */
 function resolvePlainInputAt(
   container: HTMLElement,
   typeOccurrence: number,
@@ -162,60 +129,6 @@ function resolvePlainInputAt(
     ? target
     : input;
   return { input, clickSurface };
-}
-
-/** 与页面比对「注册号码」全等：去掉零宽字符与末尾中英文冒号 */
-function normalizedFormItemLabel(raw: string): string {
-  return (raw ?? "")
-    .trim()
-    .replace(/[\u200b-\u200d\ufeff]/g, "")
-    .replace(/[：:]+$/g, "");
-}
-
-function isRegisterNumberFieldLabel(container: HTMLElement): boolean {
-  return normalizedFormItemLabel(extractLabel(container)) === "注册号码";
-}
-
-/** 标签全名为「注册号码」时，部分业务仍依赖一次真实点击才反显 uid（含纯 input） */
-async function clickAfterRegisterPhoneFill(
-  container: HTMLElement,
-  typeOccurrence: number,
-) {
-  const resolved = resolvePlainInputAt(container, typeOccurrence);
-  if (!resolved) return;
-  const { input, clickSurface } = resolved;
-  await sleep(120);
-  try {
-    input.focus({ preventScroll: true });
-  } catch {
-    input.focus();
-  }
-  // 使用视口坐标：部分页面用 clientX/Y 判断「是否点在输入框内」
-  simulatePointerClickAtCenter(clickSurface);
-  if (clickSurface !== input) {
-    await sleep(40);
-    simulatePointerClickAtCenter(input);
-  } else {
-    await sleep(30);
-    simulatePointerClickAtCenter(input);
-  }
-  if (typeof input.click === "function") {
-    input.click();
-  }
-  await sleep(100);
-}
-
-/** 本轮 FILL_FORM 结束后统一处理：避免第二轮只带部分 field 时从未执行 fillPlainInput */
-async function ensureRegisterNumberUidAfterFillBatch() {
-  for (const container of collectTopLevelFormItems()) {
-    if (!isVisible(container)) continue;
-    if (!isRegisterNumberFieldLabel(container)) continue;
-    const resolved = resolvePlainInputAt(container, 0);
-    if (!resolved) continue;
-    const v = resolved.input.value?.trim();
-    if (!v) continue;
-    await clickAfterRegisterPhoneFill(container, 0);
-  }
 }
 
 async function fillPlainInput(
@@ -356,37 +269,49 @@ function collectSelectDropdownRoots(): HTMLElement[] {
   return Array.from(roots).reverse();
 }
 
-function normalizeSelectText(text: string): string {
-  return text
+/**
+ * 是否可对当前 Select 使用「灌字搜索」：antd `showSearch`、选择器内可见搜索框，
+ * 或已展开且未隐藏的下拉里可见搜索框（与 tryTypeSelectSearch 可命中输入一致）。
+ */
+function selectSupportsSearchTyping(selectRoot: HTMLElement): boolean {
+  if (selectRoot.classList.contains("ant-select-show-search")) return true;
+  const localInputs = selectRoot.querySelectorAll<HTMLInputElement>(
+    "input.ant-select-selection-search-input, input.ant-select-search__field, .ant-select-search input",
+  );
+  for (const inp of localInputs) {
+    if (!inp.disabled && isVisible(inp)) return true;
+  }
+  for (const dd of collectSelectDropdownRoots()) {
+    if (isSelectDropdownHiddenLayer(dd)) continue;
+    const di = dd.querySelector<HTMLInputElement>(
+      "input.ant-select-selection-search-input, input.ant-select-search__field",
+    );
+    if (di && !di.disabled && isVisible(di)) return true;
+  }
+  return false;
+}
+
+/**
+ * Select 选项与目标文案比对（粘贴场景以准确值为主）：保留括号与中划线等，
+ * 仅全等或「选项含完整目标」且选项不短于目标，避免误选截断后的较短项。
+ */
+function normalizeSelectTextKeepBrackets(text: string): string {
+  return (text ?? "")
+    .trim()
     .replace(/\s+/g, "")
-    .replace(/[：:()（）\-_/]/g, "")
+    .replace(/[：:]/g, "")
+    .replace(/（/g, "(")
+    .replace(/）/g, ")")
     .toLowerCase();
 }
 
-function removeTrailingBracketSuffix(text: string): string {
-  return text.replace(/\s*[\(（][^()（）]*[\)）]\s*$/g, "").trim();
-}
-
 function selectTextMatches(optionText: string, target: string): boolean {
-  const optionNorm = normalizeSelectText(optionText);
-  const targetNorm = normalizeSelectText(target);
-  if (!optionNorm || !targetNorm) return false;
-  if (
-    optionNorm === targetNorm ||
-    optionNorm.includes(targetNorm) ||
-    targetNorm.includes(optionNorm)
-  )
-    return true;
-  const optionNoCode = normalizeSelectText(
-    removeTrailingBracketSuffix(optionText),
-  );
-  const targetNoCode = normalizeSelectText(removeTrailingBracketSuffix(target));
-  if (!optionNoCode || !targetNoCode) return false;
-  return (
-    optionNoCode === targetNoCode ||
-    optionNoCode.includes(targetNoCode) ||
-    targetNoCode.includes(optionNoCode)
-  );
+  const o = normalizeSelectTextKeepBrackets(optionText);
+  const t = normalizeSelectTextKeepBrackets(target);
+  if (!o || !t) return false;
+  if (o === t) return true;
+  if (o.includes(t) && o.length >= t.length) return true;
+  return false;
 }
 
 function tryTypeSelectSearch(selectEl: HTMLElement, query: string): boolean {
@@ -550,18 +475,26 @@ async function fillSelect(
     await sleep(280);
 
     if (!isRandomMode) {
-      tryTypeSelectSearch(selectEl, trimmedValue);
-      await sleep(220);
+      if (selectSupportsSearchTyping(selectEl)) {
+        tryTypeSelectSearch(selectEl, trimmedValue);
+        await sleep(220);
+      } else {
+        // 无搜索：等 portal/异步选项挂载（联动字段常见）
+        await sleep(360);
+      }
     }
 
     // 异步选项加载：最多等待约 5 秒
     for (let i = 0; i < 25; i++) {
-      if (!isRandomMode && i > 0 && i % 6 === 0) {
+      if (!isRandomMode && i > 0 && i % 6 === 0 && selectSupportsSearchTyping(selectEl)) {
         tryTypeSelectSearch(selectEl, trimmedValue);
       }
       const dropdowns = collectSelectDropdownRoots();
       if (!isRandomMode && dropdowns.length === 0) {
-        if (await tryConfirmSelectByKeyboard(selectEl, trimmedValue)) {
+        if (
+          selectSupportsSearchTyping(selectEl) &&
+          (await tryConfirmSelectByKeyboard(selectEl, trimmedValue))
+        ) {
           return selectionOk();
         }
       }
@@ -614,7 +547,10 @@ async function fillSelect(
             await sleep(120);
             if (await selectionOk()) return true;
           }
-          if (await tryConfirmSelectByKeyboard(selectEl, trimmedValue)) {
+          if (
+            selectSupportsSearchTyping(selectEl) &&
+            (await tryConfirmSelectByKeyboard(selectEl, trimmedValue))
+          ) {
             if (await selectionOk()) return true;
           }
         }
@@ -644,6 +580,7 @@ async function fillSelect(
     }
     if (
       !isRandomMode &&
+      selectSupportsSearchTyping(selectEl) &&
       (await tryConfirmSelectByKeyboard(selectEl, trimmedValue))
     ) {
       return selectionOk();
@@ -1605,6 +1542,37 @@ function collectTopLevelFormItems(): HTMLElement[] {
   return all.filter((item) => !item.parentElement?.closest(".ant-form-item"));
 }
 
+/** 与 extractLabel 展示文案对齐，便于全等匹配「注册号码」等 */
+function normalizedFormItemLabelText(raw: string): string {
+  return (raw ?? "")
+    .trim()
+    .replace(/[\u200b-\u200d\ufeff]/g, "")
+    .replace(/[：:]+$/g, "");
+}
+
+function isRegisterNumberFieldLabel(container: HTMLElement): boolean {
+  return normalizedFormItemLabelText(extractLabel(container)) === "注册号码";
+}
+
+/** 仅在客服/客诉工单面包屑语境：整轮填完后将焦点落在「注册号码」input 上 */
+async function focusRegisterNumberAfterFillIfCsComplaintTicketBreadcrumb() {
+  if (!isCsComplaintTicketBreadcrumbContext()) return;
+  await sleep(120);
+  for (const container of collectTopLevelFormItems()) {
+    if (!isVisible(container)) continue;
+    if (!isRegisterNumberFieldLabel(container)) continue;
+    const resolved = resolvePlainInputAt(container, 0);
+    if (!resolved) continue;
+    const { input } = resolved;
+    try {
+      input.focus({ preventScroll: true });
+    } catch {
+      input.focus();
+    }
+    return;
+  }
+}
+
 /**
  * 根据 AI 生成的数据，自动填充表单。
  * 以可见的顶层 .ant-form-item 顺序匹配 field_0, field_1...
@@ -1646,7 +1614,7 @@ export async function fillFormFields(
     }
   }
 
-  await ensureRegisterNumberUidAfterFillBatch();
+  await focusRegisterNumberAfterFillIfCsComplaintTicketBreadcrumb();
 
   // 注：曾经尝试在这里做 focus → blur 触发校验渲染错误（闭环），但会干扰刚填好的
   // select / date 等受控组件（portal 关闭尚未稳定），导致整体成功率下降。
