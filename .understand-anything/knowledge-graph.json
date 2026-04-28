@@ -1,0 +1,1174 @@
+{
+  "nodes": [
+    {
+      "id": "file:src/background/index.ts",
+      "type": "file",
+      "name": "background/index.ts",
+      "filePath": "src/background/index.ts",
+      "summary": "Chrome 扩展 Service Worker 入口点，处理 Popup 和 Content Script 之间的消息路由，协调表单扫描和填充操作。",
+      "tags": [
+        "entry-point",
+        "service-worker",
+        "chrome-extension",
+        "api-handler"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Service Worker 注册 chrome.runtime.onMessage 监听器而非导出函数；核心逻辑 executeScanInPage 通过 chrome.scripting.executeScript 注入扫描器。"
+    },
+    {
+      "id": "file:src/content/antd-adapter.ts",
+      "type": "file",
+      "name": "antd-adapter.ts",
+      "filePath": "src/content/antd-adapter.ts",
+      "summary": "核心表单填充适配器，通过使用原生 value setter 和合成事件派发来绕过 React 受控组件限制。",
+      "tags": [
+        "utility",
+        "service",
+        "form-filling",
+        "ant-design",
+        "dom-manipulation"
+      ],
+      "complexity": "complex",
+      "languageNotes": "使用 Object.getOwnPropertyDescriptor 技巧绕过 React 合成事件系统；模拟 Select、DatePicker、Cascader 等的完整用户交互流程。"
+    },
+    {
+      "id": "file:src/content/index.ts",
+      "type": "file",
+      "name": "content/index.ts",
+      "filePath": "src/content/index.ts",
+      "summary": "Content Script 入口点，为 Background Service Worker 分发的扫描和填充操作注册消息监听器。",
+      "tags": [
+        "entry-point",
+        "content-script",
+        "chrome-extension"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/content/scanner.ts",
+      "type": "file",
+      "name": "scanner.ts",
+      "filePath": "src/content/scanner.ts",
+      "summary": "基于 DOM 的表单字段扫描器，遍历 Ant Design 表单 DOM 树以提取字段元数据，包括类型、标签、选项和校验约束。",
+      "tags": [
+        "utility",
+        "scanner",
+        "dom",
+        "ant-design"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:src/popup/App.tsx",
+      "type": "file",
+      "name": "App.tsx",
+      "filePath": "src/popup/App.tsx",
+      "summary": "React 19 Popup 主组件，实现扩展 UI，包含 Toast 通知、设置面板、扫描/填充控制开关和 AI/Mock 模式切换。",
+      "tags": [
+        "component",
+        "react",
+        "popup",
+        "ui",
+        "chrome-extension"
+      ],
+      "complexity": "complex",
+      "languageNotes": "React 19 + Hooks；使用 chrome.storage.sync 持久化设置；通过 chrome.runtime.sendMessage 与 Background 通信。"
+    },
+    {
+      "id": "file:src/popup/main.tsx",
+      "type": "file",
+      "name": "main.tsx",
+      "filePath": "src/popup/main.tsx",
+      "summary": "React 应用启动代码，将 App 组件挂载到 #root DOM 元素。",
+      "tags": [
+        "entry-point",
+        "react",
+        "bootstrap"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/popup/style.css",
+      "type": "file",
+      "name": "style.css",
+      "filePath": "src/popup/style.css",
+      "summary": "Popup UI 的 CSS 样式表，包含布局、按钮样式、输入框、Toast 通知和主题变量。",
+      "tags": [
+        "stylesheet",
+        "ui",
+        "popup"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:src/shared/ai-service.ts",
+      "type": "file",
+      "name": "ai-service.ts",
+      "filePath": "src/shared/ai-service.ts",
+      "summary": "AI 服务集成层，支持 OpenAI 兼容 API 提供商，包括 DeepSeek、Kimi、Claude (Anthropic) 和自定义端点。",
+      "tags": [
+        "service",
+        "api-handler",
+        "ai",
+        "openai-compatible"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "从表单字段元数据构建提示词；支持 OpenAI chat completions 和 Anthropic messages API 路径；包含认证失败检测。"
+    },
+    {
+      "id": "file:src/shared/messages.ts",
+      "type": "file",
+      "name": "messages.ts",
+      "filePath": "src/shared/messages.ts",
+      "summary": "Chrome 扩展模块间通信的 TypeScript 消息协议定义，包括 SCAN_FORM、GENERATE_DATA、FILL_FORM 及其响应类型。",
+      "tags": [
+        "type-definition",
+        "messaging",
+        "chrome-extension"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/shared/moonshot-kimi.ts",
+      "type": "file",
+      "name": "moonshot-kimi.ts",
+      "filePath": "src/shared/moonshot-kimi.ts",
+      "summary": "Moonshot Kimi API 端点配置和基于模型类型的 Base URL 选择的辅助工具函数。",
+      "tags": [
+        "utility",
+        "ai",
+        "api-configuration"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/shared/types.ts",
+      "type": "file",
+      "name": "types.ts",
+      "filePath": "src/shared/types.ts",
+      "summary": "扩展的核心类型定义，包括 FieldType 枚举、FormFieldInfo、FillData、AIConfig 和 Settings 接口。",
+      "tags": [
+        "type-definition",
+        "data-model"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/utils/mock-rules.ts",
+      "type": "file",
+      "name": "mock-rules.ts",
+      "filePath": "src/utils/mock-rules.ts",
+      "summary": "内置 Mock 数据生成引擎，使用关键词匹配和模式分析来生成真实测试数据，无需调用 AI API。",
+      "tags": [
+        "utility",
+        "mock-data",
+        "test-data-generator"
+      ],
+      "complexity": "complex",
+      "languageNotes": "对字段标签/占位符进行关键词匹配以选择合适的 Mock 生成器（中文姓名、手机、邮箱、日期等）；支持正则字符集生成用于 pattern 约束字段。"
+    },
+    {
+      "id": "file:src/vite-env.d.ts",
+      "type": "file",
+      "name": "vite-env.d.ts",
+      "filePath": "src/vite-env.d.ts",
+      "summary": "Vite 客户端类型和 CSS 模块导入的 TypeScript 声明文件。",
+      "tags": [
+        "type-definition",
+        "vite"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:src/__tests__/failure-cases.test.ts",
+      "type": "file",
+      "name": "failure-cases.test.ts",
+      "filePath": "src/__tests__/failure-cases.test.ts",
+      "summary": "覆盖表单填充系统失败案例和边缘情况的测试套件，验证错误处理和边缘条件行为。",
+      "tags": [
+        "test",
+        "test-suite",
+        "failure-testing"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/background/index.ts:executeScanInPage",
+      "type": "function",
+      "name": "executeScanInPage",
+      "filePath": "src/background/index.ts",
+      "lineRange": [
+        17,
+        196
+      ],
+      "summary": "通过 chrome.scripting.executeScript 在目标页面中注入并执行表单扫描逻辑，提取所有 Ant Design 表单字段元数据。",
+      "tags": [
+        "service-worker",
+        "injection",
+        "scanner",
+        "chrome-extension"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/background/index.ts:sendToContentWithFallback",
+      "type": "function",
+      "name": "sendToContentWithFallback",
+      "filePath": "src/background/index.ts",
+      "lineRange": [
+        199,
+        225
+      ],
+      "summary": "向 Content Script 发送消息，如果初始发送失败则自动回退到注入 content.js。",
+      "tags": [
+        "service-worker",
+        "messaging",
+        "fallback",
+        "chrome-extension"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/content/antd-adapter.ts:fillFormFields",
+      "type": "function",
+      "name": "fillFormFields",
+      "filePath": "src/content/antd-adapter.ts",
+      "lineRange": [
+        1037,
+        1076
+      ],
+      "summary": "填充表单字段的主入口点，协调基于字段类型的填充策略，包括普通输入框、Select、Radio、Checkbox、Date、Cascader、TreeSelect、Switch 和 Transfer 组件。",
+      "tags": [
+        "form-filling",
+        "entry-point",
+        "ant-design",
+        "dom-manipulation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/content/scanner.ts:scanFormFields",
+      "type": "function",
+      "name": "scanFormFields",
+      "filePath": "src/content/scanner.ts",
+      "lineRange": [
+        517,
+        708
+      ],
+      "summary": "主要的导出扫描函数，从页面收集所有顶层 Ant Design 表单项，推断字段类型，提取标签、选项和约束，返回 FormFieldInfo 数组。",
+      "tags": [
+        "scanner",
+        "dom",
+        "form-detection",
+        "entry-point"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/content/scanner.ts:enumerateControlsInFormItem",
+      "type": "function",
+      "name": "enumerateControlsInFormItem",
+      "filePath": "src/content/scanner.ts",
+      "lineRange": [
+        38,
+        123
+      ],
+      "summary": "枚举单个 Ant Design Form.Item 容器内的所有表单控件元素，处理单个控件、包装输入框和嵌套控件组。",
+      "tags": [
+        "scanner",
+        "dom",
+        "form-control"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "function:src/content/scanner.ts:isTimeOnlyPickerEl",
+      "type": "function",
+      "name": "isTimeOnlyPickerEl",
+      "filePath": "src/content/scanner.ts",
+      "lineRange": [
+        7,
+        21
+      ],
+      "summary": "通过检查时间特定的 CSS 类和缺少日期相关类来判断 Ant Design picker 元素是否为仅时间选择器。",
+      "tags": [
+        "scanner",
+        "utility",
+        "date-time"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/popup/App.tsx:useToast",
+      "type": "function",
+      "name": "useToast",
+      "filePath": "src/popup/App.tsx",
+      "lineRange": [
+        21,
+        45
+      ],
+      "summary": "提供 Popup UI 中 Toast 通知状态和控制的自定义 React Hook，用于显示成功和错误反馈消息。",
+      "tags": [
+        "hook",
+        "react",
+        "ui",
+        "notification"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "function:src/shared/ai-service.ts:generateWithAI",
+      "type": "function",
+      "name": "generateWithAI",
+      "filePath": "src/shared/ai-service.ts",
+      "lineRange": [
+        134,
+        194
+      ],
+      "summary": "主要的导出 AI 生成函数，从表单字段构建提示词，根据提供商配置调用相应的 AI API 端点，并返回生成的填充数据。",
+      "tags": [
+        "ai",
+        "api-handler",
+        "entry-point",
+        "openai-compatible"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "function:src/utils/mock-rules.ts:generateMockData",
+      "type": "function",
+      "name": "generateMockData",
+      "filePath": "src/utils/mock-rules.ts",
+      "lineRange": [
+        822,
+        975
+      ],
+      "summary": "主要的导出 Mock 数据生成器，对表单字段执行关键词/约束分析，使用基于字段类型的 Mock 规则生成真实测试数据。",
+      "tags": [
+        "mock-data",
+        "test-data",
+        "entry-point",
+        "generator"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:scripts/pack-dist.mjs",
+      "type": "file",
+      "name": "pack-dist.mjs",
+      "filePath": "scripts/pack-dist.mjs",
+      "summary": "构建脚本，将 dist/ 目录打包成带时间戳的 zip 归档文件到 releases/ 目录下用于发布分发，从 package.json 读取版本号。",
+      "tags": [
+        "deployment",
+        "build-system",
+        "release"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Uses Node.js child_process execSync for zip command, resolves repo root via import.meta.url."
+    },
+    {
+      "id": "file:scripts/publish-tag.mjs",
+      "type": "file",
+      "name": "publish-tag.mjs",
+      "filePath": "scripts/publish-tag.mjs",
+      "summary": "发布自动化脚本，处理 git add、commit、创建 v<version> 标签，并在构建成功后推送到远程。",
+      "tags": [
+        "deployment",
+        "ci-cd",
+        "release"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Checks for existing tag to prevent overwriting, handles missing package-lock.json gracefully."
+    },
+    {
+      "id": "file:src/popup/index.html",
+      "type": "file",
+      "name": "index.html",
+      "filePath": "src/popup/index.html",
+      "summary": "Popup React UI 的 HTML 入口点，通过模块脚本加载将应用挂载到 #root div。",
+      "tags": [
+        "frontend",
+        "entry-point",
+        "react"
+      ],
+      "complexity": "simple",
+      "languageNotes": "Standard React 19 HTML template with zh-CN lang attribute."
+    },
+    {
+      "id": "config:package.json",
+      "type": "config",
+      "name": "package.json",
+      "filePath": "package.json",
+      "summary": "项目清单，定义 ai-form-copilot 扩展及其 React 19、antd 6 和 Vite 8 构建系统依赖。",
+      "tags": [
+        "configuration",
+        "project-definition",
+        "dependencies"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:public/manifest.json",
+      "type": "config",
+      "name": "manifest.json",
+      "filePath": "public/manifest.json",
+      "summary": "Chrome 扩展 Manifest V3 配置，定义权限、Popup action、Background Service Worker 和 Content Script 注入规则。",
+      "tags": [
+        "configuration",
+        "chrome-extension",
+        "manifest-v3"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:tsconfig.json",
+      "type": "config",
+      "name": "tsconfig.json",
+      "filePath": "tsconfig.json",
+      "summary": "TypeScript 编译器配置，启用严格模式、monorepo 包路径别名和浏览器 API 的 DOM 库。",
+      "tags": [
+        "configuration",
+        "typescript",
+        "build-system"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:vite.config.ts",
+      "type": "config",
+      "name": "vite.config.ts",
+      "filePath": "vite.config.ts",
+      "summary": "Popup UI 的 Vite 构建配置，使用 React 插件、路径别名解析，outDir 设置为 dist/。",
+      "tags": [
+        "configuration",
+        "vite",
+        "build-system"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:vite.config.background.ts",
+      "type": "config",
+      "name": "vite.config.background.ts",
+      "filePath": "vite.config.background.ts",
+      "summary": "Background Service Worker 的 Vite 构建配置，使用 Chrome 扩展清单和 ES 模块格式。",
+      "tags": [
+        "configuration",
+        "vite",
+        "chrome-extension"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:vite.config.content.ts",
+      "type": "config",
+      "name": "vite.config.content.ts",
+      "filePath": "vite.config.content.ts",
+      "summary": "Content Script 包的 Vite 构建配置，使用 Chrome 扩展清单和隔离世界隔离。",
+      "tags": [
+        "configuration",
+        "vite",
+        "chrome-extension"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:vitest.config.ts",
+      "type": "config",
+      "name": "vitest.config.ts",
+      "filePath": "vitest.config.ts",
+      "summary": "Vitest 测试框架配置，使用 jsdom 环境进行 React 组件测试。",
+      "tags": [
+        "configuration",
+        "testing",
+        "vitest"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:README.md",
+      "type": "document",
+      "name": "README.md",
+      "filePath": "README.md",
+      "summary": "项目概述，记录 AI Form Copilot 功能：14 类 Ant Design 表单字段扫描和填充、AI/Mock 数据生成以及多轮校验纠正。",
+      "tags": [
+        "documentation",
+        "overview",
+        "user-guide"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "document:CLAUDE.md",
+      "type": "document",
+      "name": "CLAUDE.md",
+      "filePath": "CLAUDE.md",
+      "summary": "Claude Code 指南，记录项目架构：Chrome 扩展 MV3，包含通过 chrome.runtime.sendMessage 通信的 Popup、Background 和 Content Script 模块。",
+      "tags": [
+        "documentation",
+        "development",
+        "claude"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "document:DEVELOPMENT.md",
+      "type": "document",
+      "name": "DEVELOPMENT.md",
+      "filePath": "DEVELOPMENT.md",
+      "summary": "综合开发者文档，涵盖技术栈、项目结构、AI 提供商实现、表单填充核心逻辑和发布流程。",
+      "tags": [
+        "documentation",
+        "development",
+        "technical"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "document:CHANGELOG.md",
+      "type": "document",
+      "name": "CHANGELOG.md",
+      "filePath": "CHANGELOG.md",
+      "summary": "版本历史，记录 v0.1.3、v0.1.2 和 v0.1.1 的变更，包括错误修复、改进和测试添加。",
+      "tags": [
+        "documentation",
+        "changelog",
+        "version-history"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:.cursor/skills/ai-form-failure-case/SKILL.md",
+      "type": "document",
+      "name": "SKILL.md",
+      "filePath": ".cursor/skills/ai-form-failure-case/SKILL.md",
+      "summary": "失败案例汇报模板，用于以结构化格式记录表单填充边缘情况和错误报告。",
+      "tags": [
+        "documentation",
+        "template",
+        "bug-reporting"
+      ],
+      "complexity": "simple"
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:src/background/index.ts",
+      "target": "function:src/background/index.ts:executeScanInPage",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/background/index.ts",
+      "target": "function:src/background/index.ts:sendToContentWithFallback",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/background/index.ts",
+      "target": "file:src/shared/ai-service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/background/index.ts",
+      "target": "file:src/utils/mock-rules.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/background/index.ts",
+      "target": "file:src/shared/messages.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "function:src/background/index.ts:executeScanInPage",
+      "target": "function:src/background/index.ts:sendToContentWithFallback",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/content/antd-adapter.ts",
+      "target": "function:src/content/antd-adapter.ts:fillFormFields",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/content/antd-adapter.ts",
+      "target": "file:src/content/scanner.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/content/index.ts",
+      "target": "file:src/content/scanner.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/content/index.ts",
+      "target": "file:src/content/antd-adapter.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/content/scanner.ts",
+      "target": "function:src/content/scanner.ts:scanFormFields",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/content/scanner.ts",
+      "target": "function:src/content/scanner.ts:enumerateControlsInFormItem",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/content/scanner.ts",
+      "target": "function:src/content/scanner.ts:isTimeOnlyPickerEl",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/content/scanner.ts",
+      "target": "function:src/content/scanner.ts:scanFormFields",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/content/scanner.ts",
+      "target": "function:src/content/scanner.ts:enumerateControlsInFormItem",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/content/scanner.ts",
+      "target": "function:src/content/scanner.ts:isTimeOnlyPickerEl",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/content/antd-adapter.ts",
+      "target": "function:src/content/antd-adapter.ts:fillFormFields",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:src/content/scanner.ts:scanFormFields",
+      "target": "function:src/content/scanner.ts:enumerateControlsInFormItem",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "function:src/content/scanner.ts:scanFormFields",
+      "target": "function:src/content/scanner.ts:isTimeOnlyPickerEl",
+      "type": "calls",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/popup/main.tsx",
+      "target": "file:src/popup/App.tsx",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/popup/App.tsx",
+      "target": "function:src/popup/App.tsx:useToast",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/popup/App.tsx",
+      "target": "file:src/shared/messages.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/popup/App.tsx",
+      "target": "file:src/shared/ai-service.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/popup/App.tsx",
+      "target": "file:src/utils/mock-rules.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/popup/style.css",
+      "target": "file:src/popup/App.tsx",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/shared/ai-service.ts",
+      "target": "function:src/shared/ai-service.ts:generateWithAI",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/shared/ai-service.ts",
+      "target": "file:src/shared/types.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/shared/ai-service.ts",
+      "target": "function:src/shared/ai-service.ts:generateWithAI",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/shared/messages.ts",
+      "target": "file:src/shared/types.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/shared/messages.ts",
+      "target": "file:src/shared/types.ts",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "file:src/utils/mock-rules.ts",
+      "target": "function:src/utils/mock-rules.ts:generateMockData",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:src/utils/mock-rules.ts",
+      "target": "function:src/utils/mock-rules.ts:generateMockData",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:src/utils/mock-rules.ts",
+      "target": "file:src/shared/types.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/shared/types.ts",
+      "target": "file:src/shared/messages.ts",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/__tests__/failure-cases.test.ts",
+      "target": "file:src/content/antd-adapter.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/__tests__/failure-cases.test.ts",
+      "target": "file:src/content/scanner.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/__tests__/failure-cases.test.ts",
+      "target": "file:src/utils/mock-rules.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:src/__tests__/failure-cases.test.ts",
+      "target": "file:src/shared/types.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:src/__tests__/failure-cases.test.ts",
+      "target": "file:src/utils/mock-rules.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:scripts/pack-dist.mjs",
+      "target": "file:scripts/publish-tag.mjs",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:package.json",
+      "target": "file:src/background/index.ts",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:package.json",
+      "target": "file:src/popup/App.tsx",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:tsconfig.json",
+      "target": "file:src/background/index.ts",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:tsconfig.json",
+      "target": "file:src/content/scanner.ts",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:tsconfig.json",
+      "target": "file:src/utils/mock-rules.ts",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:vite.config.ts",
+      "target": "file:src/popup/App.tsx",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:public/manifest.json",
+      "target": "file:src/background/index.ts",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:public/manifest.json",
+      "target": "file:src/content/index.ts",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "document:README.md",
+      "target": "file:src/background/index.ts",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:README.md",
+      "target": "file:src/popup/App.tsx",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "file:src/background/index.ts",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "file:src/content/scanner.ts",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "file:src/content/antd-adapter.ts",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:DEVELOPMENT.md",
+      "target": "file:src/content/scanner.ts",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:DEVELOPMENT.md",
+      "target": "file:src/content/antd-adapter.ts",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:DEVELOPMENT.md",
+      "target": "file:src/utils/mock-rules.ts",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:DEVELOPMENT.md",
+      "target": "file:src/shared/ai-service.ts",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    }
+  ],
+  "layers": [
+    {
+      "id": "layer:popup-ui",
+      "name": "Popup UI",
+      "description": "React 19 弹出界面，用于用户交互、设置管理和显示扫描/填充结果",
+      "nodeIds": [
+        "file:src/popup/App.tsx",
+        "file:src/popup/main.tsx",
+        "file:src/popup/index.html",
+        "file:src/popup/style.css"
+      ]
+    },
+    {
+      "id": "layer:background-service",
+      "name": "Background Service",
+      "description": "Chrome 扩展 Service Worker，处理消息路由、AI API 集成以及 Popup 和 Content Script 之间的协调",
+      "nodeIds": [
+        "file:src/background/index.ts"
+      ]
+    },
+    {
+      "id": "layer:content-script",
+      "name": "Content Script",
+      "description": "注入的 Content Script，用于 DOM 遍历、表单字段扫描和自动化表单填充，绕过 React 受控组件",
+      "nodeIds": [
+        "file:src/content/index.ts",
+        "file:src/content/scanner.ts",
+        "file:src/content/antd-adapter.ts"
+      ]
+    },
+    {
+      "id": "layer:shared",
+      "name": "Shared",
+      "description": "所有扩展模块共享的类型、消息协议和 AI 服务集成",
+      "nodeIds": [
+        "file:src/shared/types.ts",
+        "file:src/shared/messages.ts",
+        "file:src/shared/ai-service.ts",
+        "file:src/shared/moonshot-kimi.ts",
+        "file:src/vite-env.d.ts"
+      ]
+    },
+    {
+      "id": "layer:utils",
+      "name": "Utils",
+      "description": "内置 Mock 数据生成引擎，使用关键词匹配生成真实测试数据，无需 AI API 调用",
+      "nodeIds": [
+        "file:src/utils/mock-rules.ts"
+      ]
+    },
+    {
+      "id": "layer:test",
+      "name": "Test",
+      "description": "用于验证表单填充系统失败案例和边缘条件的测试套件",
+      "nodeIds": [
+        "file:src/__tests__/failure-cases.test.ts"
+      ]
+    },
+    {
+      "id": "layer:scripts",
+      "name": "Scripts",
+      "description": "用于打包 dist 和发布 git 标签的构建和发布自动化脚本",
+      "nodeIds": [
+        "file:scripts/pack-dist.mjs",
+        "file:scripts/publish-tag.mjs"
+      ]
+    },
+    {
+      "id": "layer:config",
+      "name": "Configuration",
+      "description": "项目配置文件，包括 TypeScript、Vite 构建配置、Vitest 和 Chrome 扩展清单",
+      "nodeIds": [
+        "config:package.json",
+        "config:tsconfig.json",
+        "config:vite.config.ts",
+        "config:vite.config.background.ts",
+        "config:vite.config.content.ts",
+        "config:vitest.config.ts",
+        "config:public/manifest.json"
+      ]
+    },
+    {
+      "id": "layer:documentation",
+      "name": "Documentation",
+      "description": "项目文档，包括 README、开发者指南、变更日志和 Claude Code 指南",
+      "nodeIds": [
+        "document:README.md",
+        "document:CLAUDE.md",
+        "document:DEVELOPMENT.md",
+        "document:CHANGELOG.md",
+        "document:.cursor/skills/ai-form-failure-case/SKILL.md"
+      ]
+    }
+  ],
+  "tour": [
+    {
+      "order": 1,
+      "title": "Project Overview",
+      "description": "从 README 开始了解项目's purpose: a Chrome Extension that automatically identifies and fills Ant Design forms with AI-generated or mock test data.",
+      "nodeIds": [
+        "document:README.md"
+      ]
+    },
+    {
+      "order": 2,
+      "title": "Architecture Overview",
+      "description": "理解 Chrome 扩展 MV3 三模块架构: Popup UI, Background Service Worker, and Content Script communicating via chrome.runtime.sendMessage.",
+      "nodeIds": [
+        "document:CLAUDE.md",
+        "config:public/manifest.json"
+      ]
+    },
+    {
+      "order": 3,
+      "title": "Popup UI Layer",
+      "description": "React 19 Popup 界面处理用户交互, settings management, and displaying scan/fill results. The main App component orchestrates the UI flow.",
+      "nodeIds": [
+        "file:src/popup/App.tsx",
+        "file:src/popup/main.tsx",
+        "file:src/popup/index.html",
+        "file:src/popup/style.css"
+      ]
+    },
+    {
+      "order": 4,
+      "title": "Background Service Worker",
+      "description": "Service Worker 作为中央消息路由器, handling SCAN_FORM, GENERATE_DATA, and FILL_FORM operations. It injects the scanner via chrome.scripting.executeScript and calls AI APIs.",
+      "nodeIds": [
+        "file:src/background/index.ts",
+        "function:src/background/index.ts:executeScanInPage"
+      ]
+    },
+    {
+      "order": 5,
+      "title": "Content Script - Scanner",
+      "description": "扫描器遍历 Ant Design 表单 DOM 树 to extract field metadata including type, label, options, and validation constraints. Key function: scanFormFields enumerates all form controls.",
+      "nodeIds": [
+        "file:src/content/scanner.ts",
+        "file:src/content/index.ts",
+        "function:src/content/scanner.ts:scanFormFields"
+      ]
+    },
+    {
+      "order": 6,
+      "title": "Content Script - Form Filler",
+      "description": "antd-adapter 绕过 React 受控组件限制 using native value setters and synthetic event dispatching. It simulates full user interaction flows for Select, DatePicker, Cascader, TreeSelect, Switch, and Transfer components.",
+      "nodeIds": [
+        "file:src/content/antd-adapter.ts",
+        "function:src/content/antd-adapter.ts:fillFormFields"
+      ]
+    },
+    {
+      "order": 7,
+      "title": "Shared Types and Messages",
+      "description": "核心类型定义 (FieldType enum, FormFieldInfo, FillData) and message protocol definitions for inter-module communication via chrome.runtime.sendMessage.",
+      "nodeIds": [
+        "file:src/shared/types.ts",
+        "file:src/shared/messages.ts"
+      ]
+    },
+    {
+      "order": 8,
+      "title": "AI Service Integration",
+      "description": "AI 服务支持 OpenAI 兼容 API including DeepSeek, Kimi, Claude (Anthropic), and custom endpoints. Builds prompts from form field metadata and returns generated fill data.",
+      "nodeIds": [
+        "file:src/shared/ai-service.ts",
+        "function:src/shared/ai-service.ts:generateWithAI",
+        "file:src/shared/moonshot-kimi.ts"
+      ]
+    },
+    {
+      "order": 9,
+      "title": "Mock Data Generation",
+      "description": "内置 Mock 数据引擎 using keyword matching on field labels/placeholders to generate realistic test data (Chinese names, phones, emails, IDs, dates, etc.) without AI API calls.",
+      "nodeIds": [
+        "file:src/utils/mock-rules.ts",
+        "function:src/utils/mock-rules.ts:generateMockData"
+      ]
+    },
+    {
+      "order": 10,
+      "title": "Configuration and Build",
+      "description": "Vite 构建配置 for each extension module (popup, content script, background), TypeScript strict mode config, and Vitest testing setup.",
+      "nodeIds": [
+        "config:vite.config.ts",
+        "config:vite.config.content.ts",
+        "config:vite.config.background.ts",
+        "config:tsconfig.json",
+        "config:vitest.config.ts"
+      ]
+    },
+    {
+      "order": 11,
+      "title": "Developer Documentation",
+      "description": "综合开发者指南 covering technical stack, AI provider implementations, form filling core logic (including the React controlled component bypass technique), and release workflow.",
+      "nodeIds": [
+        "document:DEVELOPMENT.md"
+      ]
+    }
+  ],
+  "project": {
+    "name": "ai-form-copilot-cursor",
+    "languages": [
+      "typescript",
+      "css",
+      "html",
+      "json",
+      "markdown"
+    ],
+    "frameworks": [
+      "Ant Design",
+      "React",
+      "Vite",
+      "Vitest"
+    ],
+    "description": "智能表单填充浏览器插件，自动识别 Ant Design 表单并生成合规测试数据",
+    "analyzedAt": "2026-04-28T07:30:00.000Z",
+    "gitCommitHash": "738df01b2493d130986402da182ab7d5bf31f969"
+  }
+}
