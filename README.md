@@ -4,18 +4,6 @@
 
 > 想看实现原理 / 从源码构建 / 发版流程？请跳转 [DEVELOPMENT.md](./DEVELOPMENT.md)。
 
-## 功能特性
-
-| 功能                 | 说明                                                                                                                                                                       |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **表单自动扫描**     | 识别 Ant Design 常见控件 **14 类**：Input、Textarea、Select、Radio、Checkbox、DatePicker、RangePicker、TimePicker、InputNumber、Cascader、TreeSelect、Switch、Transfer 等  |
-| **AI 智能生成**      | 内置 OpenAI / DeepSeek / Kimi 及智谱、百炼、MiniMax、火山方舟、硅基、百川等预设（需自备 API Key），支持 **自定义** Base URL；按标签、placeholder、校验规则生成中文测试数据 |
-| **内置 Mock 规则**   | 不配 AI 也可用；关键词覆盖姓名、手机、邮箱、身份证、地址、公司、日期、时间、金额、编号等；支持从 HTML `pattern` 与「只能包含…」类提示反解字符集                            |
-| **一键填充**         | 「扫描 → 生成 → 填充」可一步完成，也可分步执行                                                                                                                             |
-| **多轮纠偏**         | 读取红字校验（如 `.ant-form-item-explain-error`、`role="alert"`）回灌下一轮，直至通过                                                                                      |
-| **Pro / React 适配** | 兼容 `@ant-design/pro-components`；绕过受控组件对 `input.value` 的劫持，正确触发 `onChange`                                                                                |
-| **antd 4 / 5+ / 6+** | 覆盖多版本 DOM 差异（如 `.ant-select-selection` / `.ant-select-selector`、下拉项 class 等）                                                                                |
-
 ## 安装
 
 ### 方式 1：下载已构建的 zip（推荐）
@@ -28,6 +16,18 @@
 ### 方式 2：从源码构建
 
 本地跑 `npm install && npm run build`，然后加载 `dist/` 目录。详细步骤见 [DEVELOPMENT.md](./DEVELOPMENT.md#从源码构建)。
+
+## 功能特性
+
+| 功能                 | 说明                                                                                                                                                                       |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **表单自动扫描**     | 识别 Ant Design 常见控件 **14 类**：Input、Textarea、Select、Radio、Checkbox、DatePicker、RangePicker、TimePicker、InputNumber、Cascader、TreeSelect、Switch、Transfer 等  |
+| **AI 智能生成**      | 内置 OpenAI / DeepSeek / Kimi 及智谱、百炼、MiniMax、火山方舟、硅基、百川等预设（需自备 API Key），支持 **自定义** Base URL；按标签、placeholder、校验规则生成中文测试数据 |
+| **内置 Mock 规则**   | 不配 AI 也可用；关键词覆盖姓名、手机、邮箱、身份证、地址、公司、日期、时间、金额、编号等；支持从 HTML `pattern` 与「只能包含…」类提示反解字符集                            |
+| **一键填充**         | 「扫描 → 生成 → 填充」可一步完成，也可分步执行                                                                                                                             |
+| **多轮纠偏**         | 读取红字校验（如 `.ant-form-item-explain-error`、`role="alert"`）回灌下一轮，直至通过                                                                                      |
+| **Pro / React 适配** | 兼容 `@ant-design/pro-components`；绕过受控组件对 `input.value` 的劫持，正确触发 `onChange`                                                                                |
+| **antd 4 / 5+ / 6+** | 覆盖多版本 DOM 差异（如 `.ant-select-selection` / `.ant-select-selector`、下拉项 class 等）                                                                                |
 
 ## 使用方法
 
