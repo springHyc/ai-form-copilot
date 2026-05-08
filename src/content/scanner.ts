@@ -144,27 +144,38 @@ function extractFieldIdentifier(
 }
 
 /** 从 Ant Design 表单项容器中提取标签文本 */
-function extractLabel(container: HTMLElement): string {
-  // 只查找当前 form-item 自己的 label，不要拿到嵌套 form-item 的 label
-  const labelEl =
-    container.querySelector(":scope > .ant-row > .ant-form-item-label label") ??
-    container.querySelector(":scope > .ant-form-item-label label") ??
-    container.querySelector(".ant-form-item-label label");
-  if (labelEl) {
-    return (labelEl.textContent?.trim() ?? "")
+export function extractLabel(container: HTMLElement): string {
+  const normalize = (raw: string) =>
+    (raw ?? "")
+      .trim()
       .replace(/^\*\s*/, "")
       .replace(/[：:]$/, "");
+
+  // 优先取当前 form-item 的 label 列（含无 <label> 节点、仅 div/span 文案的 ProForm / 自定义布局）
+  const labelCol =
+    container.querySelector<HTMLElement>(
+      ":scope > .ant-row > .ant-form-item-label",
+    ) ?? container.querySelector<HTMLElement>(":scope > .ant-form-item-label");
+
+  if (labelCol) {
+    const nested = labelCol.querySelector<HTMLElement>("label");
+    if (nested) return normalize(nested.textContent ?? "");
+    const colText = labelCol.textContent ?? "";
+    if (colText.trim()) return normalize(colText);
   }
 
-  // 兜底：直接查找直属 label 标签
+  const labelEl =
+    container.querySelector<HTMLElement>(
+      ":scope > .ant-row > .ant-form-item-label label",
+    ) ??
+    container.querySelector<HTMLElement>(":scope > .ant-form-item-label label") ??
+    container.querySelector<HTMLElement>(".ant-form-item-label label");
+  if (labelEl) return normalize(labelEl.textContent ?? "");
+
   const fallbackLabel =
-    container.querySelector(":scope > .ant-row label") ??
-    container.querySelector("label");
-  if (fallbackLabel) {
-    return (fallbackLabel.textContent?.trim() ?? "")
-      .replace(/^\*\s*/, "")
-      .replace(/[：:]$/, "");
-  }
+    container.querySelector<HTMLElement>(":scope > .ant-row label") ??
+    container.querySelector<HTMLElement>("label");
+  if (fallbackLabel) return normalize(fallbackLabel.textContent ?? "");
 
   return "";
 }

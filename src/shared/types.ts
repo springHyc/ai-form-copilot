@@ -51,6 +51,53 @@ export interface FillData {
   [fieldId: string]: string | number | boolean;
 }
 
+/** 粘贴文本抽取出的结构化槽位 */
+export interface PastedTextSlots {
+  rawText: string;
+  normalizedText: string;
+  complaintContent: string;
+  phones: string[];
+  idCards: string[];
+  names: string[];
+  channelTokens: string[];
+  productTokens: string[];
+  funderTokens: string[];
+}
+
+/** 问题分类单个节点（四级树可递归扩展） */
+export interface IssueCategoryNode {
+  label: string;
+  value: string;
+  children?: IssueCategoryNode[];
+}
+
+/** 问题分类分层决策结果 */
+export interface IssueClassificationResult {
+  pathLabels: string[];
+  pathValues: string[];
+  stoppedAtLevel: 1 | 2 | 3 | 4 | 0;
+  confidence: number;
+  reason?: string;
+}
+
+/** 单个字段的映射结果，用于 UI 和日志回显 */
+export interface FieldMappingResult {
+  fieldId: string;
+  fieldLabel: string;
+  value?: string;
+  autoFilled: boolean;
+  confidence: number;
+  reason: string;
+}
+
+/** 粘贴文本填表总结果（执行前映射） */
+export interface PastedTextMappingPlan {
+  slots: PastedTextSlots;
+  data: FillData;
+  mappings: FieldMappingResult[];
+  classification?: IssueClassificationResult;
+}
+
 /** 内置 AI 服务商（均为 OpenAI Chat Completions 兼容路径，除 Kimi K2.5 等走 Anthropic 兼容，见 moonshot-kimi） */
 export type AiProvider =
   | 'openai'
