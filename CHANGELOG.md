@@ -2,6 +2,21 @@
 
 本文件记录 AI Form Copilot 的重要变更。
 
+## [0.1.5] - 2026-05-20
+
+### 改进
+
+- **默认 AI 服务商切换为 DeepSeek**：`DEFAULT_SETTINGS` 中 `provider` 从 `openai` 改为 `deepseek`，`model` 改为 `deepseek-v4-flash`，`baseUrl` 改为 `https://api.deepseek.com`；`useMockFallback` 默认改为 `false`，优先走 AI 生成。
+- **内置 DeepSeek API Key**：支持通过 `VITE_DEEPSEEK_API_KEY` 环境变量在构建时内置 Key（在项目根目录创建 `.env.local` 写入该变量即可）；`.env.local` 已加入 `.gitignore`。
+- **旧配置自动迁移**：检测到旧版默认配置（`openai` 无 Key + `gpt-4o-mini`）时自动升级为新的 DeepSeek 默认配置。
+- **AI 服务商下拉顺序调整**：DeepSeek 移至第一位，标签改为「DeepSeek（已内置）」。
+- **模型预设全面升级**：各平台模型列表更新为最新主力版本（GPT-5.5、DeepSeek V4 Flash/Pro、GLM-4.6、qwen3-max、MiniMax M2.7、Doubao Seed 1.6、DeepSeek-V3.2 等）。
+- **模型下拉支持自定义**：每个服务商的模型下拉新增「自定义」选项，选择后可直接输入模型名称。
+
+### 修复
+
+- **Mock fallback 逻辑调整**：即便用户开启「无 AI 时用内置规则」，也优先尝试 AI 请求，仅在 AI 异常时才降级为 Mock，避免 AI 可用时被设置项误跳过。
+
 ## [0.1.-3] - 2026-04-23
 
 - feat: 新增粘贴文本直填功能

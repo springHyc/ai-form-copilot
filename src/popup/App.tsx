@@ -60,52 +60,54 @@ const TYPE_COLORS: Record<string, string> = {
 /** 模型名以各平台控制台为准；下列为常用默认，便于开箱（国内 Coding Plan 类平台对比可参考 [AI Coding Plan 对比](https://z4crk6mg95.coze.site/)） */
 const MODEL_PRESETS: Record<AiProvider, { label: string; value: string }[]> = {
   openai: [
-    { label: 'GPT-4o-mini', value: 'gpt-4o-mini' },
-    { label: 'GPT-4o', value: 'gpt-4o' },
-    { label: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' },
+    { label: 'GPT-5.5', value: 'gpt-5.5' },
+    { label: 'GPT-5.4', value: 'gpt-5.4' },
+    { label: 'GPT-5.4 mini', value: 'gpt-5.4-mini' },
   ],
   deepseek: [
-    { label: 'DeepSeek V3.2 对话（deepseek-chat）', value: 'deepseek-chat' },
-    { label: 'DeepSeek V3.2 思考（deepseek-reasoner）', value: 'deepseek-reasoner' },
+    { label: 'DeepSeek V4 Flash', value: 'deepseek-v4-flash' },
+    { label: 'DeepSeek V4 Pro', value: 'deepseek-v4-pro' },
   ],
   /** Kimi（月之暗面 Moonshot）；K2.5/K2.6 走 Anthropic 兼容网关，见 moonshot-kimi.ts */
   kimi: [
     { label: 'Kimi K2.6', value: 'kimi-k2.6' },
     { label: 'Kimi K2.5', value: 'kimi-k2.5' },
-    { label: 'moonshot-v1-8k', value: 'moonshot-v1-8k' },
-    { label: 'moonshot-v1-32k', value: 'moonshot-v1-32k' },
     { label: 'moonshot-v1-128k', value: 'moonshot-v1-128k' },
   ],
   zhipu: [
+    { label: 'GLM-4.6', value: 'glm-4.6' },
+    { label: 'GLM-4.5', value: 'glm-4.5' },
     { label: 'GLM-4-Flash', value: 'glm-4-flash' },
-    { label: 'GLM-4-Plus', value: 'glm-4-plus' },
-    { label: 'GLM-4-Air', value: 'glm-4-air' },
   ],
   bailian: [
-    { label: 'qwen-plus', value: 'qwen-plus' },
-    { label: 'qwen-turbo', value: 'qwen-turbo' },
-    { label: 'qwen-max', value: 'qwen-max' },
+    { label: 'qwen3-max', value: 'qwen3-max' },
+    { label: 'qwen3.5-plus', value: 'qwen3.5-plus' },
+    { label: 'qwen3-coder-plus', value: 'qwen3-coder-plus' },
   ],
   minimax: [
-    { label: 'MiniMax-M2', value: 'MiniMax-M2' },
-    { label: 'abab6.5s-chat', value: 'abab6.5s-chat' },
+    { label: 'MiniMax-M2.7', value: 'MiniMax-M2.7' },
+    { label: 'MiniMax-M2.7-highspeed', value: 'MiniMax-M2.7-highspeed' },
+    { label: 'MiniMax-M2.5', value: 'MiniMax-M2.5' },
   ],
   volcengine: [
-    { label: 'Doubao Pro 32K', value: 'doubao-pro-32k' },
-    { label: 'Doubao Lite 4K', value: 'doubao-lite-4k' },
+    { label: 'Doubao Seed 1.6', value: 'doubao-seed-1-6-250615' },
+    { label: 'Doubao Seed 1.6 Thinking', value: 'doubao-seed-1-6-thinking-250615' },
     { label: 'Doubao Seed 1.6 Flash', value: 'doubao-seed-1-6-flash-250915' },
   ],
   siliconflow: [
-    { label: 'DeepSeek-V3', value: 'deepseek-ai/DeepSeek-V3' },
-    { label: 'Qwen2.5-72B-Instruct', value: 'Qwen/Qwen2.5-72B-Instruct' },
-    { label: 'Qwen2.5-7B-Instruct', value: 'Qwen/Qwen2.5-7B-Instruct' },
+    { label: 'DeepSeek-V3.2', value: 'deepseek-ai/DeepSeek-V3.2' },
+    { label: 'Qwen3-235B-A22B-Instruct-2507', value: 'Qwen/Qwen3-235B-A22B-Instruct-2507' },
+    { label: 'Qwen3-Coder-480B-A35B-Instruct', value: 'Qwen/Qwen3-Coder-480B-A35B-Instruct' },
   ],
   baichuan: [
     { label: 'Baichuan4-Turbo', value: 'Baichuan4-Turbo' },
+    { label: 'Baichuan4-Air', value: 'Baichuan4-Air' },
     { label: 'Baichuan3-Turbo', value: 'Baichuan3-Turbo' },
   ],
   custom: [],
 };
+
+const CUSTOM_MODEL_VALUE = '__custom__';
 
 const PROVIDER_URLS: Record<AiProvider, string> = {
   openai: 'https://api.openai.com/v1',
@@ -206,6 +208,15 @@ const App: React.FC = () => {
       if (!result.settings) return;
       let s = result.settings as Settings;
       const ac = s.aiConfig;
+      const isLegacyDefaultConfig =
+        ac.provider === 'openai'
+        && !ac.apiKey
+        && ac.model === 'gpt-4o-mini'
+        && (ac.baseUrl ?? '').replace(/\/$/, '') === 'https://api.openai.com/v1';
+      if (isLegacyDefaultConfig) {
+        s = DEFAULT_SETTINGS;
+        chrome.storage.local.set({ settings: s });
+      }
       // 已保存的 Kimi 配置按模型纠正 baseUrl（kimi-k2.5 / kimi-k2.6 需走 /anthropic）
       if (ac.provider === 'kimi') {
         const expected = moonshotCnBaseUrlForKimiModel(ac.model);
@@ -260,11 +271,6 @@ const App: React.FC = () => {
       return generateMockData(targetFields);
     }
 
-    // 用户显式选择「无 AI 时用内置规则」：不发起 AI 请求
-    if (useMockFallback) {
-      return generateMockData(targetFields);
-    }
-
     try {
       const response = await chrome.runtime.sendMessage({
         type: MessageType.GENERATE_DATA,
@@ -299,6 +305,10 @@ const App: React.FC = () => {
         if (/AI API 调用失败 \(429\)/.test(msg) || /rate_limit/i.test(msg)) {
           notifyAiRateLimitedOnce();
         }
+        return generateMockData(targetFields);
+      }
+      if (useMockFallback) {
+        console.warn('[AI Form Copilot] AI 生成异常，已按设置降级为 Mock:', e);
         return generateMockData(targetFields);
       }
       console.error('[AI Form Copilot] Popup -> Background GENERATE_DATA 异常:', e);
@@ -545,6 +555,10 @@ const App: React.FC = () => {
         : pasteFilling
           ? '粘贴填充中...'
           : '';
+  const modelPresets = MODEL_PRESETS[settings.aiConfig.provider];
+  const modelInPresets = modelPresets.some((p) => p.value === settings.aiConfig.model);
+  const modelSelectValue = modelInPresets ? settings.aiConfig.model : CUSTOM_MODEL_VALUE;
+  const isCustomModel = modelSelectValue === CUSTOM_MODEL_VALUE;
 
   return (
     <>
@@ -671,8 +685,8 @@ const App: React.FC = () => {
                 value={settings.aiConfig.provider}
                 onChange={(e) => updateAIConfig({ provider: e.target.value as AiProvider })}
               >
+                <option value="deepseek">DeepSeek（已内置）</option>
                 <option value="openai">OpenAI</option>
-                <option value="deepseek">DeepSeek</option>
                 <option value="kimi">Kimi（月之暗面）</option>
                 <option value="zhipu">智谱 GLM</option>
                 <option value="bailian">阿里百炼（DashScope 兼容）</option>
@@ -695,19 +709,22 @@ const App: React.FC = () => {
 
             <div className="form-item">
               <label className="form-label">模型</label>
-              {MODEL_PRESETS[settings.aiConfig.provider].length > 0 ? (
-                <select
-                  className="form-select"
-                  value={settings.aiConfig.model}
-                  onChange={(e) => updateAIConfig({ model: e.target.value })}
-                >
-                  {MODEL_PRESETS[settings.aiConfig.provider].map((p) => (
-                    <option key={p.value} value={p.value}>{p.label}</option>
-                  ))}
-                </select>
-              ) : (
+              <select
+                className="form-select"
+                value={modelSelectValue}
+                onChange={(e) => {
+                  const model = e.target.value;
+                  updateAIConfig({ model: model === CUSTOM_MODEL_VALUE ? '' : model });
+                }}
+              >
+                {modelPresets.map((p) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+                <option value={CUSTOM_MODEL_VALUE}>自定义</option>
+              </select>
+              {isCustomModel && (
                 <input
-                  className="form-input"
+                  className="form-input custom-model-input"
                   value={settings.aiConfig.model}
                   onChange={(e) => updateAIConfig({ model: e.target.value })}
                   placeholder="输入模型名称"

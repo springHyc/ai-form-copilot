@@ -132,12 +132,14 @@ export interface Settings {
   useMockFallback: boolean;
 }
 
+const BUILT_IN_DEEPSEEK_API_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY ?? '';
+
 export const DEFAULT_SETTINGS: Settings = {
   aiConfig: {
-    provider: 'openai',
-    apiKey: '',
-    model: 'gpt-4o-mini',
-    baseUrl: 'https://api.openai.com/v1',
+    provider: 'deepseek',
+    apiKey: BUILT_IN_DEEPSEEK_API_KEY,
+    model: 'deepseek-v4-flash',
+    baseUrl: 'https://api.deepseek.com',
   },
-  useMockFallback: true,
+  useMockFallback: false,
 };

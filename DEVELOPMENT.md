@@ -63,10 +63,11 @@ src/
 ### 类型与存储
 
 - `src/shared/types.ts`：`AiProvider` 联合类型（`openai` | `deepseek` | `kimi` | `zhipu` | `bailian` | `minimax` | `volcengine` | `siliconflow` | `baichuan` | `custom`），`AIConfig.provider` 使用该类型；`Settings.aiConfig` 经 `chrome.storage.local` 持久化。
+- 默认 AI 配置为 DeepSeek：`provider=deepseek`、`model=deepseek-v4-flash`、`baseUrl=https://api.deepseek.com`。如需把自己的 DeepSeek 账号内置进本地构建，在仓库根目录创建 `.env.local` 并写入 `VITE_DEEPSEEK_API_KEY=你的Key`，再执行 `npm run build`；`.env.local` 已被 `.gitignore` 覆盖，不要把真实 Key 提交到仓库。
 
 ### Popup 预设（与代码一致）
 
-`src/popup/App.tsx` 内 **`MODEL_PRESETS`**（按服务商分组的模型下拉）与 **`PROVIDER_URLS`**（切换服务商时写入的默认 `baseUrl`）与下表一致；用户仍可手动改「API 地址」输入框（例如换地域、火山 `ep-xxxx` 等）。
+`src/popup/App.tsx` 内 **`MODEL_PRESETS`**（按服务商分组的模型下拉候选项）与 **`PROVIDER_URLS`**（切换服务商时写入的默认 `baseUrl`）与下表一致；「模型」下拉仅保留每个服务商最新的 2-3 个常用模型，并额外提供「自定义」选项，选择后可直接输入新模型名；用户也可手动改「API 地址」输入框（例如换地域、火山 `ep-xxxx` 等）。
 
 | `provider`    | 展示名（约）     | 默认 `baseUrl`（去尾 `/` 后由 `ai-service` 拼 `/chat/completions`）      |
 | ------------- | ---------------- | ------------------------------------------------------------------------ |
