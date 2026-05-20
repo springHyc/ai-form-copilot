@@ -41,25 +41,25 @@
 
 ## 配置 AI（可选）
 
-切到 Popup 右上角的「设置」选项卡即可：
+插件**默认使用 DeepSeek V4 Flash**，开箱即用无需配置。如需使用自己的 DeepSeek Key 或切换其他服务商，切到 Popup 右上角的「设置」选项卡即可：
 
-| 服务商                    | 说明                                                                                                                                                                                                           |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **OpenAI**                | 填 API Key；默认 `https://api.openai.com/v1`；模型下拉含 `gpt-4o-mini` 等。                                                                                                                                    |
-| **DeepSeek**              | 填 API Key；默认 `https://api.deepseek.com`；模型 `deepseek-chat`（V3.2 非思考）/ `deepseek-reasoner`（V3.2 思考），与 [官方文档](https://api-docs.deepseek.com/) 一致。                                       |
-| **Kimi（月之暗面）**      | 填 API Key；`kimi-k2.6` / `kimi-k2.5` 走 **Anthropic 兼容 `/anthropic`**，其余走 **OpenAI 兼容 `/v1`**（见 `src/shared/moonshot-kimi.ts`）；模型列表见 [Kimi 模型列表](https://platform.kimi.ai/docs/models)。 |
-| **智谱 GLM**              | 填 API Key；默认 `https://open.bigmodel.cn/api/paas/v4`；模型如 `glm-4-flash` / `glm-4-plus` 等。                                                                                                              |
-| **阿里百炼（DashScope）** | 填 API Key；默认 `https://dashscope.aliyuncs.com/compatible-mode/v1`；模型如 `qwen-plus` / `qwen-turbo` / `qwen-max`。                                                                                         |
-| **MiniMax**               | 填 API Key；默认 `https://api.minimaxi.com/v1`；模型如 `MiniMax-M2` / `abab6.5s-chat`。                                                                                                                        |
-| **火山方舟（豆包等）**    | 填 API Key；默认 `https://ark.cn-beijing.volces.com/api/v3`；模型下拉为常见豆包示例名，**以控制台实际推理接入点 / 模型名为准**。                                                                               |
-| **硅基流动**              | 填 API Key；默认 `https://api.siliconflow.cn/v1`；模型为 `deepseek-ai/DeepSeek-V3`、`Qwen/...` 等路由名。                                                                                                      |
-| **百川智能**              | 填 API Key；默认 `https://api.baichuan-ai.com/v1`；模型如 `Baichuan4-Turbo` 等。                                                                                                                               |
-| **自定义**                | 任意 OpenAI 兼容 Base URL + 模型名（公司内网网关、火山 `ep-xxxx` 接入点等）。                                                                                                                                  |
+| 服务商                    | 说明                                                                                                                                                                                                                                                  |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **DeepSeek（已内置）**    | 默认选中，无需 Key 即可使用；也可以填自己的 API Key；默认 `https://api.deepseek.com`；模型下拉 `deepseek-v4-flash` / `deepseek-v4-pro`。                                                                                                              |
+| **OpenAI**                | 填 API Key；默认 `https://api.openai.com/v1`；模型下拉含 `gpt-5.5` / `gpt-5.4` / `gpt-5.4-mini`。                                                                                                                                                     |
+| **Kimi（月之暗面）**      | 填 API Key；`kimi-k2.6` / `kimi-k2.5` 走 **Anthropic 兼容 `/anthropic`**，其余走 **OpenAI 兼容 `/v1`**（见 `src/shared/moonshot-kimi.ts`）；模型列表见 [Kimi 模型列表](https://platform.kimi.ai/docs/models)。                                        |
+| **智谱 GLM**              | 填 API Key；默认 `https://open.bigmodel.cn/api/paas/v4`；模型下拉 `glm-4.6` / `glm-4.5` / `glm-4-flash`。                                                                                                                                             |
+| **阿里百炼（DashScope）** | 填 API Key；默认 `https://dashscope.aliyuncs.com/compatible-mode/v1`；模型下拉 `qwen3-max` / `qwen3.5-plus` / `qwen3-coder-plus`。                                                                                                                    |
+| **MiniMax**               | 填 API Key；默认 `https://api.minimaxi.com/v1`；模型下拉 `MiniMax-M2.7` / `MiniMax-M2.7-highspeed` / `MiniMax-M2.5`。                                                                                                                                 |
+| **火山方舟（豆包等）**    | 填 API Key；默认 `https://ark.cn-beijing.volces.com/api/v3`；模型下拉 `doubao-seed-1-6-250615` / `doubao-seed-1-6-thinking-250615` / `doubao-seed-1-6-flash-250915`，**以控制台实际推理接入点 / 模型名为准**。                                        |
+| **硅基流动**              | 填 API Key；默认 `https://api.siliconflow.cn/v1`；模型下拉 `deepseek-ai/DeepSeek-V3.2` / `Qwen/Qwen3-235B-A22B-Instruct-2507` / `Qwen/Qwen3-Coder-480B-A35B-Instruct`。                                                                               |
+| **百川智能**              | 填 API Key；默认 `https://api.baichuan-ai.com/v1`；模型下拉 `Baichuan4-Turbo` / `Baichuan4-Air` / `Baichuan3-Turbo`。                                                                                                                                 |
+| **自定义**                | 任意 OpenAI 兼容 Base URL + 模型名（公司内网网关、火山 `ep-xxxx` 接入点等）；模型下拉选择「自定义」后可直接输入模型名。                                                                                                                               |
 
 - 各平台 **套餐与模型命名** 会随官方调整，下拉仅为常用默认；更全对比可参考 [AI Coding Plan 对比（国内主流 AI 平台）](https://z4crk6mg95.coze.site/)。
 - **火山方舟**若使用控制台给出的 **接入点 ID**（`ep-xxxx`）作为模型名，或 Base 与默认北京区不一致，请用 **自定义** 填写完整 **API 地址** 与 **模型**。
 
-> 不配 API Key 时，插件会使用内置的 Mock 规则生成数据，对常见字段（姓名、手机、邮箱、身份证、地址、日期、金额、编号等）已有良好支持。AI 主要在「业务专属字段」（如「营销计划名称」「隔离设置」「渠道代码」等需要理解语义才能填对的字段）上显著提升数据质量。
+> 未配置 AI 时，插件会使用内置的 Mock 规则生成数据，对常见字段（姓名、手机、邮箱、身份证、地址、日期、金额、编号等）已有良好支持。AI 主要在「业务专属字段」（如「营销计划名称」「隔离设置」「渠道代码」等需要理解语义才能填对的字段）上显著提升数据质量。
 
 实现细节（`AiProvider`、`response_format` 对 MiniMax 的特例等）见 [DEVELOPMENT.md — AI 服务商与实现](./DEVELOPMENT.md#ai-服务商与实现)。
 
