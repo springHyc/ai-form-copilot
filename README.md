@@ -39,22 +39,22 @@
    - **填充**：把生成值写回表单，并返回「本轮成功填充字段数」。
 4. 若提交后页面出现红色校验错误，再点一次「一键智能填充」，插件会自动把错误文案回灌到下一轮生成，直到通过。
 
-## 配置 AI（可选）
+## 配置 AI
 
 插件**默认使用 DeepSeek V4 Flash**，开箱即用无需配置。如需使用自己的 DeepSeek Key 或切换其他服务商，切到 Popup 右上角的「设置」选项卡即可：
 
-| 服务商                    | 说明                                                                                                                                                                                                                                                  |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **DeepSeek（已内置）**    | 默认选中，无需 Key 即可使用；也可以填自己的 API Key；默认 `https://api.deepseek.com`；模型下拉 `deepseek-v4-flash` / `deepseek-v4-pro`。                                                                                                              |
-| **OpenAI**                | 填 API Key；默认 `https://api.openai.com/v1`；模型下拉含 `gpt-5.5` / `gpt-5.4` / `gpt-5.4-mini`。                                                                                                                                                     |
-| **Kimi（月之暗面）**      | 填 API Key；`kimi-k2.6` / `kimi-k2.5` 走 **Anthropic 兼容 `/anthropic`**，其余走 **OpenAI 兼容 `/v1`**（见 `src/shared/moonshot-kimi.ts`）；模型列表见 [Kimi 模型列表](https://platform.kimi.ai/docs/models)。                                        |
-| **智谱 GLM**              | 填 API Key；默认 `https://open.bigmodel.cn/api/paas/v4`；模型下拉 `glm-4.6` / `glm-4.5` / `glm-4-flash`。                                                                                                                                             |
-| **阿里百炼（DashScope）** | 填 API Key；默认 `https://dashscope.aliyuncs.com/compatible-mode/v1`；模型下拉 `qwen3-max` / `qwen3.5-plus` / `qwen3-coder-plus`。                                                                                                                    |
-| **MiniMax**               | 填 API Key；默认 `https://api.minimaxi.com/v1`；模型下拉 `MiniMax-M2.7` / `MiniMax-M2.7-highspeed` / `MiniMax-M2.5`。                                                                                                                                 |
-| **火山方舟（豆包等）**    | 填 API Key；默认 `https://ark.cn-beijing.volces.com/api/v3`；模型下拉 `doubao-seed-1-6-250615` / `doubao-seed-1-6-thinking-250615` / `doubao-seed-1-6-flash-250915`，**以控制台实际推理接入点 / 模型名为准**。                                        |
-| **硅基流动**              | 填 API Key；默认 `https://api.siliconflow.cn/v1`；模型下拉 `deepseek-ai/DeepSeek-V3.2` / `Qwen/Qwen3-235B-A22B-Instruct-2507` / `Qwen/Qwen3-Coder-480B-A35B-Instruct`。                                                                               |
-| **百川智能**              | 填 API Key；默认 `https://api.baichuan-ai.com/v1`；模型下拉 `Baichuan4-Turbo` / `Baichuan4-Air` / `Baichuan3-Turbo`。                                                                                                                                 |
-| **自定义**                | 任意 OpenAI 兼容 Base URL + 模型名（公司内网网关、火山 `ep-xxxx` 接入点等）；模型下拉选择「自定义」后可直接输入模型名。                                                                                                                               |
+| 服务商                    | 说明                                                                                                                                                                                                           |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **DeepSeek（已内置）**    | 默认选中，无需 Key 即可使用；也可以填自己的 API Key；默认 `https://api.deepseek.com`；模型下拉 `deepseek-v4-flash` / `deepseek-v4-pro`。                                                                       |
+| **OpenAI**                | 填 API Key；默认 `https://api.openai.com/v1`；模型下拉含 `gpt-5.5` / `gpt-5.4` / `gpt-5.4-mini`。                                                                                                              |
+| **Kimi（月之暗面）**      | 填 API Key；`kimi-k2.6` / `kimi-k2.5` 走 **Anthropic 兼容 `/anthropic`**，其余走 **OpenAI 兼容 `/v1`**（见 `src/shared/moonshot-kimi.ts`）；模型列表见 [Kimi 模型列表](https://platform.kimi.ai/docs/models)。 |
+| **智谱 GLM**              | 填 API Key；默认 `https://open.bigmodel.cn/api/paas/v4`；模型下拉 `glm-4.6` / `glm-4.5` / `glm-4-flash`。                                                                                                      |
+| **阿里百炼（DashScope）** | 填 API Key；默认 `https://dashscope.aliyuncs.com/compatible-mode/v1`；模型下拉 `qwen3-max` / `qwen3.5-plus` / `qwen3-coder-plus`。                                                                             |
+| **MiniMax**               | 填 API Key；默认 `https://api.minimaxi.com/v1`；模型下拉 `MiniMax-M2.7` / `MiniMax-M2.7-highspeed` / `MiniMax-M2.5`。                                                                                          |
+| **火山方舟（豆包等）**    | 填 API Key；默认 `https://ark.cn-beijing.volces.com/api/v3`；模型下拉 `doubao-seed-1-6-250615` / `doubao-seed-1-6-thinking-250615` / `doubao-seed-1-6-flash-250915`，**以控制台实际推理接入点 / 模型名为准**。 |
+| **硅基流动**              | 填 API Key；默认 `https://api.siliconflow.cn/v1`；模型下拉 `deepseek-ai/DeepSeek-V3.2` / `Qwen/Qwen3-235B-A22B-Instruct-2507` / `Qwen/Qwen3-Coder-480B-A35B-Instruct`。                                        |
+| **百川智能**              | 填 API Key；默认 `https://api.baichuan-ai.com/v1`；模型下拉 `Baichuan4-Turbo` / `Baichuan4-Air` / `Baichuan3-Turbo`。                                                                                          |
+| **自定义**                | 任意 OpenAI 兼容 Base URL + 模型名（公司内网网关、火山 `ep-xxxx` 接入点等）；模型下拉选择「自定义」后可直接输入模型名。                                                                                        |
 
 - 各平台 **套餐与模型命名** 会随官方调整，下拉仅为常用默认；更全对比可参考 [AI Coding Plan 对比（国内主流 AI 平台）](https://z4crk6mg95.coze.site/)。
 - **火山方舟**若使用控制台给出的 **接入点 ID**（`ep-xxxx`）作为模型名，或 Base 与默认北京区不一致，请用 **自定义** 填写完整 **API 地址** 与 **模型**。
