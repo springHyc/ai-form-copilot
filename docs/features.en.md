@@ -1,5 +1,7 @@
 # AI Form Copilot Features
 
+English | [简体中文](./features.md)
+
 AI Form Copilot is a Chrome Extension MV3 plugin that automatically detects Ant Design forms and generates test data. It is designed for developers, testers, product managers, and anyone who frequently fills forms in admin pages.
 
 > Installation and build instructions are in [README.md](../README.md). Implementation details are in [DEVELOPMENT.en.md](../DEVELOPMENT.en.md).

@@ -1,5 +1,7 @@
 # Fill From Pasted Text Baseline Record
 
+English | [简体中文](./paste-fill-baseline-record.md)
+
 > Goal: validate the "prefer leaving fields empty over filling incorrectly" strategy on real target pages, and keep a comparable baseline.
 > Record date: 2026-04-23
 

@@ -1,6 +1,6 @@
 # 粘贴文本直填 E2E 手工验证清单
 
-English version: [paste-fill-e2e-checklist.en.md](./paste-fill-e2e-checklist.en.md)
+[English](./paste-fill-e2e-checklist.en.md) | 简体中文
 
 ## 前置条件
 

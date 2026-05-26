@@ -1,5 +1,7 @@
 # Fill From Pasted Text E2E Manual Verification Checklist
 
+English | [简体中文](./paste-fill-e2e-checklist.md)
+
 ## Prerequisites
 
 - Open the target ticket page and make sure the latest `dist/` version of the extension is loaded.

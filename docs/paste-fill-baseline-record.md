@@ -1,6 +1,6 @@
 # 粘贴文本直填基线记录
 
-English version: [paste-fill-baseline-record.en.md](./paste-fill-baseline-record.en.md)
+[English](./paste-fill-baseline-record.en.md) | 简体中文
 
 > 目标：在真实目标页面验证“宁可留空不误填”策略，并沉淀可对比基线。  
 > 记录日期：2026-04-23

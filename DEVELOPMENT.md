@@ -1,6 +1,6 @@
 # AI Form Copilot — 开发者文档
 
-English version: [DEVELOPMENT.en.md](./DEVELOPMENT.en.md)
+[English](./DEVELOPMENT.en.md) | 简体中文
 
 面向贡献者 / 维护者 / 二次开发者。终端用户使用说明见 [README.zh-CN.md](./README.zh-CN.md)。
 
@@ -71,18 +71,18 @@ src/
 
 `src/popup/App.tsx` 内 **`MODEL_PRESETS`**（按服务商分组的模型下拉候选项）与 **`PROVIDER_URLS`**（切换服务商时写入的默认 `baseUrl`）与下表一致；「模型」下拉仅保留每个服务商最新的 2-3 个常用模型，并额外提供「自定义」选项，选择后可直接输入新模型名；用户也可手动改「API 地址」输入框（例如换地域、火山 `ep-xxxx` 等）。
 
-| `provider`    | 展示名（约）     | 默认 `baseUrl`（去尾 `/` 后由 `ai-service` 拼 `/chat/completions`）      |
-| ------------- | ---------------- | ------------------------------------------------------------------------ |
-| `openai`      | OpenAI           | `https://api.openai.com/v1`                                              |
-| `deepseek`    | DeepSeek         | `https://api.deepseek.com`                                               |
+| `provider`    | 展示名（约）     | 默认 `baseUrl`（去尾 `/` 后由 `ai-service` 拼 `/chat/completions`）                                           |
+| ------------- | ---------------- | ------------------------------------------------------------------------------------------------------------- |
+| `openai`      | OpenAI           | `https://api.openai.com/v1`                                                                                   |
+| `deepseek`    | DeepSeek         | `https://api.deepseek.com`                                                                                    |
 | `kimi`        | Kimi（月之暗面） | 见 `moonshot-kimi.ts`：`kimi-k2.6` / `kimi-k2.5` 走 Anthropic 兼容 `/anthropic`，其余走国内 OpenAI 兼容 `/v1` |
-| `zhipu`       | 智谱 GLM         | `https://open.bigmodel.cn/api/paas/v4`                                   |
-| `bailian`     | 阿里百炼         | `https://dashscope.aliyuncs.com/compatible-mode/v1`                      |
-| `minimax`     | MiniMax          | `https://api.minimaxi.com/v1`                                            |
-| `volcengine`  | 火山方舟         | `https://ark.cn-beijing.volces.com/api/v3`                               |
-| `siliconflow` | 硅基流动         | `https://api.siliconflow.cn/v1`                                          |
-| `baichuan`    | 百川智能         | `https://api.baichuan-ai.com/v1`                                         |
-| `custom`      | 自定义           | 空字符串，由用户填写                                                     |
+| `zhipu`       | 智谱 GLM         | `https://open.bigmodel.cn/api/paas/v4`                                                                        |
+| `bailian`     | 阿里百炼         | `https://dashscope.aliyuncs.com/compatible-mode/v1`                                                           |
+| `minimax`     | MiniMax          | `https://api.minimaxi.com/v1`                                                                                 |
+| `volcengine`  | 火山方舟         | `https://ark.cn-beijing.volces.com/api/v3`                                                                    |
+| `siliconflow` | 硅基流动         | `https://api.siliconflow.cn/v1`                                                                               |
+| `baichuan`    | 百川智能         | `https://api.baichuan-ai.com/v1`                                                                              |
+| `custom`      | 自定义           | 空字符串，由用户填写                                                                                          |
 
 套餐 / 模型命名对照可参考 [AI Coding Plan 对比](https://z4crk6mg95.coze.site/) 等第三方汇总页；**以各云控制台为准**。
 

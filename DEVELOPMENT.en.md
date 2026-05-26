@@ -1,6 +1,6 @@
 # AI Form Copilot - Developer Guide
 
-Chinese version: [DEVELOPMENT.md](./DEVELOPMENT.md)
+English | [简体中文](./DEVELOPMENT.md)
 
 This document is for contributors, maintainers, and secondary developers. End-user usage instructions are in [README.md](./README.md).
 
@@ -72,18 +72,18 @@ src/
 
 `MODEL_PRESETS` and `PROVIDER_URLS` in `src/popup/App.tsx` define the provider-specific model dropdown options and default `baseUrl` values. The model dropdown keeps 2 to 3 common recent models for each provider and includes a "Custom" option for manually entering a model name. Users can also edit the API base URL directly, for example to use another region or a Volcengine `ep-xxxx` endpoint.
 
-| `provider` | Display Name | Default `baseUrl` |
-| --- | --- | --- |
-| `openai` | OpenAI | `https://api.openai.com/v1` |
-| `deepseek` | DeepSeek | `https://api.deepseek.com` |
-| `kimi` | Kimi (Moonshot) | See `moonshot-kimi.ts`: `kimi-k2.6` / `kimi-k2.5` use the Anthropic-compatible `/anthropic` endpoint; other models use the OpenAI-compatible `/v1` endpoint. |
-| `zhipu` | Zhipu GLM | `https://open.bigmodel.cn/api/paas/v4` |
-| `bailian` | Alibaba Bailian | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
-| `minimax` | MiniMax | `https://api.minimaxi.com/v1` |
-| `volcengine` | Volcengine Ark | `https://ark.cn-beijing.volces.com/api/v3` |
-| `siliconflow` | SiliconFlow | `https://api.siliconflow.cn/v1` |
-| `baichuan` | Baichuan AI | `https://api.baichuan-ai.com/v1` |
-| `custom` | Custom | Empty string. Filled by the user. |
+| `provider`    | Display Name    | Default `baseUrl`                                                                                                                                            |
+| ------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `openai`      | OpenAI          | `https://api.openai.com/v1`                                                                                                                                  |
+| `deepseek`    | DeepSeek        | `https://api.deepseek.com`                                                                                                                                   |
+| `kimi`        | Kimi (Moonshot) | See `moonshot-kimi.ts`: `kimi-k2.6` / `kimi-k2.5` use the Anthropic-compatible `/anthropic` endpoint; other models use the OpenAI-compatible `/v1` endpoint. |
+| `zhipu`       | Zhipu GLM       | `https://open.bigmodel.cn/api/paas/v4`                                                                                                                       |
+| `bailian`     | Alibaba Bailian | `https://dashscope.aliyuncs.com/compatible-mode/v1`                                                                                                          |
+| `minimax`     | MiniMax         | `https://api.minimaxi.com/v1`                                                                                                                                |
+| `volcengine`  | Volcengine Ark  | `https://ark.cn-beijing.volces.com/api/v3`                                                                                                                   |
+| `siliconflow` | SiliconFlow     | `https://api.siliconflow.cn/v1`                                                                                                                              |
+| `baichuan`    | Baichuan AI     | `https://api.baichuan-ai.com/v1`                                                                                                                             |
+| `custom`      | Custom          | Empty string. Filled by the user.                                                                                                                            |
 
 Plans and model names can change. Use each provider console as the source of truth. Third-party summaries such as [AI Coding Plan Comparison](https://z4crk6mg95.coze.site/) can be useful references.
 
@@ -155,20 +155,20 @@ This handles Pro Components cases where `ProFormDependency` conditionally render
 
 For each form-item container, CSS selectors are matched from highest to lowest priority:
 
-| Priority | Selector | Field Type | Notes |
-| --- | --- | --- | --- |
-| 1 | `.ant-cascader` | cascader | Special components first to avoid Select misclassification. |
-| 2 | `.ant-tree-select` | treeselect | |
-| 3 | `.ant-transfer` | transfer | |
-| 4 | `.ant-switch` | switch | |
-| 5 | `.ant-select` | select | |
-| 6 | `.ant-radio-group` | radio | |
-| 7 | `.ant-checkbox-group` | checkbox | |
-| 8 | `.ant-picker-range` | daterange | Must be before `.ant-picker`. |
-| 9 | `.ant-picker` | date | |
-| 10 | `.ant-input-number` | number | |
-| 11 | `textarea.ant-input` | textarea | Before input to avoid misclassification. |
-| 12 | `input.ant-input` | input | Most generic and lowest priority. |
+| Priority | Selector              | Field Type | Notes                                                       |
+| -------- | --------------------- | ---------- | ----------------------------------------------------------- |
+| 1        | `.ant-cascader`       | cascader   | Special components first to avoid Select misclassification. |
+| 2        | `.ant-tree-select`    | treeselect |                                                             |
+| 3        | `.ant-transfer`       | transfer   |                                                             |
+| 4        | `.ant-switch`         | switch     |                                                             |
+| 5        | `.ant-select`         | select     |                                                             |
+| 6        | `.ant-radio-group`    | radio      |                                                             |
+| 7        | `.ant-checkbox-group` | checkbox   |                                                             |
+| 8        | `.ant-picker-range`   | daterange  | Must be before `.ant-picker`.                               |
+| 9        | `.ant-picker`         | date       |                                                             |
+| 10       | `.ant-input-number`   | number     |                                                             |
+| 11       | `textarea.ant-input`  | textarea   | Before input to avoid misclassification.                    |
+| 12       | `input.ant-input`     | input      | Most generic and lowest priority.                           |
 
 **3. Extract field metadata**
 
@@ -204,14 +204,14 @@ AI is only used for generating test data. Scanning and filling are pure DOM oper
 
 Difference between Mock and AI:
 
-| | Without AI (Mock rules) | With AI (for example DeepSeek) |
-| --- | --- | --- |
-| Speed | Instant, local computation | Usually 1 to 3 seconds, network request |
-| Common fields such as name / phone / email | Good, dedicated rules | Good |
-| Domain-specific fields | Weak, often random text | Better semantic understanding |
-| Cross-field relationships | None, fields are generated independently | Can understand relationships between fields |
-| Network required | No | Yes |
-| Cost | Free | Depends on provider, usually low for small prompts |
+|                                            | Without AI (Mock rules)                  | With AI (for example DeepSeek)                     |
+| ------------------------------------------ | ---------------------------------------- | -------------------------------------------------- |
+| Speed                                      | Instant, local computation               | Usually 1 to 3 seconds, network request            |
+| Common fields such as name / phone / email | Good, dedicated rules                    | Good                                               |
+| Domain-specific fields                     | Weak, often random text                  | Better semantic understanding                      |
+| Cross-field relationships                  | None, fields are generated independently | Can understand relationships between fields        |
+| Network required                           | No                                       | Yes                                                |
+| Cost                                       | Free                                     | Depends on provider, usually low for small prompts |
 
 Example comparison for fields `Plan name`, `Execution setting`, and `Isolation setting`:
 
@@ -268,14 +268,14 @@ Between steps, the adapter waits with `await sleep(ms)` so asynchronous DOM upda
 
 The three modules communicate through `chrome.runtime.sendMessage` and `chrome.tabs.sendMessage`. All messages are strictly typed with TypeScript union types:
 
-| Message Type | Direction | Payload |
-| --- | --- | --- |
-| SCAN_FORM | Popup -> Background | none |
-| SCAN_RESULT | Background -> Popup | `{ fields: FormFieldInfo[] }` |
-| GENERATE_DATA | Popup -> Background | `{ fields, aiConfig }` |
-| GENERATE_RESULT | Background -> Popup | `{ data: FillData }` |
-| FILL_FORM | Popup -> Background -> Content | `{ data: FillData }` |
-| FILL_RESULT | Content -> Background -> Popup | `{ filledCount: number }` |
+| Message Type    | Direction                      | Payload                       |
+| --------------- | ------------------------------ | ----------------------------- |
+| SCAN_FORM       | Popup -> Background            | none                          |
+| SCAN_RESULT     | Background -> Popup            | `{ fields: FormFieldInfo[] }` |
+| GENERATE_DATA   | Popup -> Background            | `{ fields, aiConfig }`        |
+| GENERATE_RESULT | Background -> Popup            | `{ data: FillData }`          |
+| FILL_FORM       | Popup -> Background -> Content | `{ data: FillData }`          |
+| FILL_RESULT     | Content -> Background -> Popup | `{ filledCount: number }`     |
 
 **Reliability safeguards:**
 
@@ -304,11 +304,11 @@ Before every release command (`npm run build:prod*`), it is strongly recommended
 
 Daily development only needs `npm run build`. For an official release, use one of the following semantic-version commands:
 
-| Command | Version change, with `1.0.0` as example | Typical use |
-| --- | --- | --- |
-| `npm run build:prod` | `1.0.0 -> 1.0.1` (patch) | Bug fixes or compatibility patches |
-| `npm run build:prod:minor` | `1.0.0 -> 1.1.0` (minor) | New failure-case coverage or new components |
-| `npm run build:prod:major` | `1.0.0 -> 2.0.0` (major) | Breaking changes or protocol changes |
+| Command                    | Version change, with `1.0.0` as example | Typical use                                 |
+| -------------------------- | --------------------------------------- | ------------------------------------------- |
+| `npm run build:prod`       | `1.0.0 -> 1.0.1` (patch)                | Bug fixes or compatibility patches          |
+| `npm run build:prod:minor` | `1.0.0 -> 1.1.0` (minor)                | New failure-case coverage or new components |
+| `npm run build:prod:major` | `1.0.0 -> 2.0.0` (major)                | Breaking changes or protocol changes        |
 
 Each command performs **4 steps**. Step 4 internally runs `git add`, `commit`, `tag`, and `push`:
 

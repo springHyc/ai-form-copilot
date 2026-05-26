@@ -1,6 +1,6 @@
 # AI Form Copilot
 
-English version: [README.md](./README.md)
+[English](./README.md) | 简体中文
 
 智能表单填充浏览器插件 —— 自动识别 Ant Design 表单并生成合规测试数据，面向后台系统的开发、测试、产品、运营或者是需要频繁填充表单同学，一键把一整页表单填上。
 
