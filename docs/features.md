@@ -1,0 +1,69 @@
+# AI Form Copilot 功能介绍
+
+AI Form Copilot 是一个 Chrome Extension MV3 插件，用于自动识别 Ant Design 表单并生成测试数据，适合开发、测试、产品同学在后台页面中快速填充表单。
+
+> 安装和构建方式见 [README.md](../README.md)，实现细节见 [DEVELOPMENT.md](../DEVELOPMENT.md)。
+
+## 功能总览
+
+| 功能 | 说明 |
+| --- | --- |
+| 表单自动扫描 | 自动识别页面中的 Ant Design 表单项，提取标签、类型、必填状态、选项、当前值和校验错误。 |
+| 一键智能填充 | 将“扫描、生成数据、填充表单”串成一个流程，适合快速填完整页表单。 |
+| 分步操作 | 支持单独执行扫描、生成数据、填充，便于定位字段识别或填充问题。 |
+| 粘贴文本直填 | 将一段来源文本映射到页面字段，并直接填充匹配到的表单项。 |
+| AI 数据生成 | 支持 OpenAI / DeepSeek / Kimi / 智谱 / 百炼 / MiniMax / 火山方舟 / 硅基流动 / 百川 / 自定义 OpenAI 兼容接口。 |
+| 内置 Mock 规则 | 不配置 API Key 时也可生成常见测试数据，覆盖姓名、手机、邮箱、地址、日期、时间、金额、编号等字段。 |
+| 多轮纠偏 | 读取页面已展示的校验错误，下一轮生成数据时自动参考错误提示进行修正。 |
+| 界面语言切换 | 设置页支持 English 和简体中文，默认语言为 English。 |
+
+## Popup 面板
+
+Popup 分为两个页签：
+
+| 页签 | 说明 |
+| --- | --- |
+| Fill / 填充 | 执行一键填充、粘贴文本直填、扫描、生成数据、填充，并展示识别字段和生成值。 |
+| Settings / 设置 | 配置界面语言、AI 服务商、API Key、模型、API 地址，以及 AI 不可用时是否使用内置规则。 |
+
+## 数据生成模式
+
+### AI 模式
+
+配置 API Key 后，插件会把扫描到的字段信息发送给所选 AI 服务，按字段语义、选项、placeholder、约束和校验错误生成测试数据。
+
+适合字段含义不够固定、字段之间存在上下文关系、或普通关键词规则无法判断应填内容的表单。
+
+### Mock 模式
+
+未配置 API Key 时，插件会使用本地内置规则生成测试数据，不需要联网。
+
+Mock 规则适合常见字段，例如姓名、手机、邮箱、地址、日期、时间、金额、编号等。对于没有可见选项的 Select / Cascader / TreeSelect 等交互组件，会交给填充阶段在页面下拉项中随机选择。
+
+## 支持的组件
+
+当前重点适配 Ant Design 与常见 Pro Components 表单：
+
+| 类型 | 组件示例 |
+| --- | --- |
+| 文本输入 | Input、Input.Password、Input.TextArea |
+| 数字输入 | InputNumber |
+| 单选 / 多选 | Radio、Checkbox |
+| 下拉选择 | Select、Cascader、TreeSelect、Transfer |
+| 日期时间 | DatePicker、RangePicker、TimePicker |
+| 开关 | Switch |
+
+更完整的组件支持矩阵见 [README.md - 支持的 Ant Design 组件](../README.md#支持的-ant-design-组件)。
+
+## 语言设置
+
+设置页新增语言选择项：
+
+| 选项 | 说明 |
+| --- | --- |
+| English | 默认语言。 |
+| 简体中文 | 中文界面文案。 |
+
+语言设置会保存在 `chrome.storage.local` 中，重新打开 Popup 后会继续使用上次选择。
+
+旧版本已保存的设置如果没有语言字段，会自动补全为默认的 English。

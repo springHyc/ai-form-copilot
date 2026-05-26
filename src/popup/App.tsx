@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { MessageType } from '@/shared/messages';
-import type { AIConfig, AiProvider, FillData, FormFieldInfo, Settings } from '@/shared/types';
+import type { AIConfig, AiProvider, FillData, FormFieldInfo, Language, Settings } from '@/shared/types';
 import { DEFAULT_SETTINGS } from '@/shared/types';
 import { MOONSHOT_CN_CHAT_BASE, moonshotCnBaseUrlForKimiModel } from '@/shared/moonshot-kimi';
 import { toUserFacingAiCallError } from '@/shared/ai-service';
 import { generateMockData } from '@/utils/mock-rules';
 import { buildPasteFillSummary, type PasteFillSummary } from '@/paste-fill/baseline-summary';
+import { getPopupMessages, LANGUAGE_OPTIONS } from './i18n';
 
 import './style.css';
 
@@ -123,13 +124,32 @@ const PROVIDER_URLS: Record<AiProvider, string> = {
   custom: '',
 };
 
+const isLanguage = (value: unknown): value is Language =>
+  value === 'en' || value === 'zh-CN';
+
+function normalizeSettings(value: unknown): Settings {
+  const saved = (value ?? {}) as Partial<Settings> & { aiConfig?: Partial<AIConfig> };
+  return {
+    ...DEFAULT_SETTINGS,
+    ...saved,
+    aiConfig: {
+      ...DEFAULT_SETTINGS.aiConfig,
+      ...(saved.aiConfig ?? {}),
+    },
+    language: isLanguage(saved.language) ? saved.language : DEFAULT_SETTINGS.language,
+    useMockFallback: saved.useMockFallback ?? DEFAULT_SETTINGS.useMockFallback,
+  };
+}
+
 /* ========== 密码输入框组件 ========== */
 
 const PasswordInput: React.FC<{
   value: string;
   onChange: (val: string) => void;
   placeholder?: string;
-}> = ({ value, onChange, placeholder }) => {
+  showTitle: string;
+  hideTitle: string;
+}> = ({ value, onChange, placeholder, showTitle, hideTitle }) => {
   const [visible, setVisible] = useState(false);
   return (
     <div className="password-wrapper">
@@ -144,7 +164,7 @@ const PasswordInput: React.FC<{
         className="password-toggle"
         type="button"
         onClick={() => setVisible(!visible)}
-        title={visible ? '隐藏' : '显示'}
+        title={visible ? hideTitle : showTitle}
       >
         {visible ? '🙈' : '👁'}
       </button>
@@ -197,6 +217,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'main' | 'settings'>('main');
 
   const toast = useToast();
+  const t = getPopupMessages(settings.language);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   /** 同一次「生成 / 一键填充」流程内，AI 限流提示只弹一次，避免多轮扫描刷屏 */
@@ -206,7 +227,8 @@ const App: React.FC = () => {
   useEffect(() => {
     chrome.storage.local.get('settings').then((result) => {
       if (!result.settings) return;
-      let s = result.settings as Settings;
+      let s = normalizeSettings(result.settings);
+      let shouldPersistSettings = JSON.stringify(s) !== JSON.stringify(result.settings);
       const ac = s.aiConfig;
       const isLegacyDefaultConfig =
         ac.provider === 'openai'
@@ -215,7 +237,7 @@ const App: React.FC = () => {
         && (ac.baseUrl ?? '').replace(/\/$/, '') === 'https://api.openai.com/v1';
       if (isLegacyDefaultConfig) {
         s = DEFAULT_SETTINGS;
-        chrome.storage.local.set({ settings: s });
+        shouldPersistSettings = true;
       }
       // 已保存的 Kimi 配置按模型纠正 baseUrl（kimi-k2.5 / kimi-k2.6 需走 /anthropic）
       if (ac.provider === 'kimi') {
@@ -223,18 +245,25 @@ const App: React.FC = () => {
         const cur = (ac.baseUrl ?? '').replace(/\/$/, '');
         if (cur !== expected.replace(/\/$/, '')) {
           s = { ...s, aiConfig: { ...ac, baseUrl: expected } };
-          chrome.storage.local.set({ settings: s });
+          shouldPersistSettings = true;
         }
+      }
+      if (shouldPersistSettings) {
+        chrome.storage.local.set({ settings: s });
       }
       setSettings(s);
     });
   }, []);
 
+  useEffect(() => {
+    document.documentElement.lang = settings.language;
+  }, [settings.language]);
+
   // 保存设置
   const saveSettings = useCallback((newSettings: Settings) => {
     setSettings(newSettings);
     chrome.storage.local.set({ settings: newSettings });
-    toast.success('设置已保存');
+    toast.success(getPopupMessages(newSettings.language).settingsSaved);
   }, [toast]);
 
   // 更新 AI 配置
@@ -259,7 +288,7 @@ const App: React.FC = () => {
   const notifyAiRateLimitedOnce = useCallback(() => {
     if (aiRateLimitHintShownRef.current) return;
     aiRateLimitHintShownRef.current = true;
-    toast.warning('AI 接口限流（429），已改用内置规则生成数据，或者更换AI 服务商');
+    toast.warning(getPopupMessages(settingsRef.current.language).aiRateLimited);
   }, [toast]);
 
   // 生成数据
@@ -332,7 +361,7 @@ const App: React.FC = () => {
       const response = await chrome.runtime.sendMessage({ type: MessageType.SCAN_FORM });
       if (!response) {
         console.error('[AI Form Copilot] Popup -> Background SCAN_FORM 无响应');
-        toast.error('扫描失败：无响应');
+        toast.error(t.scanNoResponse);
         return;
       }
       if (response.type === MessageType.ERROR) {
@@ -342,44 +371,44 @@ const App: React.FC = () => {
       }
       setFields(response.fields || []);
       if (response.fields?.length > 0) {
-        toast.success(`发现 ${response.fields.length} 个表单字段`);
+        toast.success(t.scanFound(response.fields.length));
       } else {
-        toast.warning('未发现 Ant Design 表单字段');
+        toast.warning(t.scanNoAntdFields);
       }
     } catch (e) {
       console.error('[AI Form Copilot] Popup 扫描异常:', e);
-      toast.error('扫描失败，请确保页面已加载完成');
+      toast.error(t.scanFailedPage);
     } finally {
       setScanning(false);
     }
-  }, [toast]);
+  }, [t, toast]);
 
   // 生成数据按钮
   const handleGenerate = useCallback(async () => {
-    if (fields.length === 0) { toast.warning('请先扫描表单'); return; }
+    if (fields.length === 0) { toast.warning(t.scanFirst); return; }
     aiRateLimitHintShownRef.current = false;
     setGenerating(true);
     try {
       const data = await generateData(fields);
       setFillData(data);
-      toast.success('数据生成完成');
+      toast.success(t.dataGenerated);
     } catch (error) {
       console.error('[AI Form Copilot] Popup 生成数据失败:', error);
-      toast.error(error instanceof Error ? error.message : '数据生成失败');
+      toast.error(error instanceof Error ? error.message : t.dataGenerationFailed);
     } finally {
       setGenerating(false);
     }
-  }, [fields, generateData, toast]);
+  }, [fields, generateData, t, toast]);
 
   // 填充表单
   const handleFill = useCallback(async () => {
-    if (Object.keys(fillData).length === 0) { toast.warning('请先生成数据'); return; }
+    if (Object.keys(fillData).length === 0) { toast.warning(t.generateFirst); return; }
     setFilling(true);
     try {
       const response = await chrome.runtime.sendMessage({ type: MessageType.FILL_FORM, data: fillData });
       if (!response) {
         console.error('[AI Form Copilot] Popup -> Background FILL_FORM 无响应');
-        toast.error('填充失败：无响应');
+        toast.error(t.fillNoResponse);
         return;
       }
       if (response.type === MessageType.ERROR) {
@@ -387,14 +416,14 @@ const App: React.FC = () => {
         toast.error(response.error);
         return;
       }
-      toast.success(`成功填充 ${response.filledCount} 个字段`);
+      toast.success(t.fillSuccess(response.filledCount));
     } catch (e) {
       console.error('[AI Form Copilot] Popup 填充异常:', e);
-      toast.error('填充失败');
+      toast.error(t.fillFailed);
     } finally {
       setFilling(false);
     }
-  }, [fillData, toast]);
+  }, [fillData, t, toast]);
 
   // 一键完成
   const handleOneClick = useCallback(async () => {
@@ -410,7 +439,7 @@ const App: React.FC = () => {
         const scanResponse = await chrome.runtime.sendMessage({ type: MessageType.SCAN_FORM });
         if (!scanResponse) {
           console.error(`[AI Form Copilot] Popup 一键填充 pass=${pass} SCAN_FORM 无响应`);
-          toast.error('扫描失败：无响应');
+          toast.error(t.scanNoResponse);
           setScanning(false);
           return;
         }
@@ -424,7 +453,7 @@ const App: React.FC = () => {
         const scannedFields = (scanResponse.fields || []) as FormFieldInfo[];
         setFields(scannedFields);
         if (scannedFields.length === 0) {
-          if (pass === 1) toast.warning('未发现表单字段');
+          if (pass === 1) toast.warning(t.noFieldsFound);
           break;
         }
 
@@ -441,7 +470,7 @@ const App: React.FC = () => {
           passData = await generateData(needFillFields);
         } catch (error) {
           console.error(`[AI Form Copilot] Popup 一键填充 pass=${pass} 生成数据失败:`, error);
-          toast.error(error instanceof Error ? error.message : '数据生成失败');
+          toast.error(error instanceof Error ? error.message : t.dataGenerationFailed);
           setGenerating(false);
           return;
         }
@@ -459,7 +488,7 @@ const App: React.FC = () => {
 
         if (!fillResponse) {
           console.error(`[AI Form Copilot] Popup 一键填充 pass=${pass} FILL_FORM 无响应`);
-          toast.error('填充失败：无响应');
+          toast.error(t.fillNoResponse);
           return;
         }
         if (fillResponse.type === MessageType.ERROR) {
@@ -487,19 +516,19 @@ const App: React.FC = () => {
       }
 
       setScanning(false);
-      toast.success(`完成！累计成功填充 ${totalFilled} 个字段`);
+      toast.success(t.oneClickComplete(totalFilled));
     } catch (e) {
       console.error('[AI Form Copilot] Popup 一键填充异常:', e);
-      toast.error('操作失败，请重试');
+      toast.error(t.operationFailedRetry);
       setScanning(false);
       setGenerating(false);
       setFilling(false);
     }
-  }, [generateData, toast]);
+  }, [generateData, t, toast]);
 
   const handlePasteFill = useCallback(async () => {
     if (!pastedText.trim()) {
-      toast.warning('请先粘贴文本');
+      toast.warning(t.pasteTextFirst);
       return;
     }
     setPasteFilling(true);
@@ -508,7 +537,7 @@ const App: React.FC = () => {
       if (availableFields.length === 0) {
         const scanResponse = await chrome.runtime.sendMessage({ type: MessageType.SCAN_FORM });
         if (!scanResponse || scanResponse.type === MessageType.ERROR) {
-          toast.error(scanResponse?.error ?? '扫描失败');
+          toast.error(scanResponse?.error ?? t.scanFailed);
           return;
         }
         availableFields = scanResponse.fields || [];
@@ -516,7 +545,7 @@ const App: React.FC = () => {
       }
 
       if (availableFields.length === 0) {
-        toast.warning('未发现可填充字段');
+        toast.warning(t.noFillableFields);
         return;
       }
 
@@ -526,7 +555,7 @@ const App: React.FC = () => {
         fields: availableFields,
       });
       if (!response) {
-        toast.error('粘贴填充失败：无响应');
+        toast.error(t.pasteFillNoResponse);
         return;
       }
       if (response.type === MessageType.ERROR) {
@@ -536,24 +565,24 @@ const App: React.FC = () => {
 
       setFillData(response.data || {});
       setPasteSummary(buildPasteFillSummary(response.mappings || []));
-      toast.success(`粘贴填充完成：成功 ${response.filledCount} 个字段`);
+      toast.success(t.pasteFillSuccess(response.filledCount));
     } catch (error) {
       console.error('[AI Form Copilot] Popup 粘贴填充失败:', error);
-      toast.error(error instanceof Error ? error.message : '粘贴填充失败');
+      toast.error(error instanceof Error ? error.message : t.pasteFillFailed);
     } finally {
       setPasteFilling(false);
     }
-  }, [fields, pastedText, toast]);
+  }, [fields, pastedText, t, toast]);
 
   const isLoading = scanning || generating || filling || pasteFilling;
   const loadingText = scanning
-    ? '扫描中...'
+    ? t.loadingScan
     : generating
-      ? '生成中...'
+      ? t.loadingGenerate
       : filling
-        ? '填充中...'
+        ? t.loadingFill
         : pasteFilling
-          ? '粘贴填充中...'
+          ? t.loadingPasteFill
           : '';
   const modelPresets = MODEL_PRESETS[settings.aiConfig.provider];
   const modelInPresets = modelPresets.some((p) => p.value === settings.aiConfig.model);
@@ -575,13 +604,13 @@ const App: React.FC = () => {
             className={`tab-btn ${activeTab === 'main' ? 'active' : ''}`}
             onClick={() => setActiveTab('main')}
           >
-            <Icon.Rocket /> 填充
+            <Icon.Rocket /> {t.fillTab}
           </button>
           <button
             className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
             onClick={() => setActiveTab('settings')}
           >
-            <Icon.Setting /> 设置
+            <Icon.Setting /> {t.settingsTab}
           </button>
         </div>
 
@@ -595,15 +624,15 @@ const App: React.FC = () => {
                 onClick={handleOneClick}
                 disabled={isLoading}
               >
-                {isLoading ? <><span className="spinner" /> {loadingText}</> : <><Icon.Rocket /> 一键智能填充</>}
+                {isLoading ? <><span className="spinner" /> {loadingText}</> : <><Icon.Rocket /> {t.oneClickFill}</>}
               </button>
 
               <div className="card">
-                <div className="card-header">粘贴文本直填（新功能）</div>
+                <div className="card-header">{t.pasteFillTitle}</div>
                 <div className="card-body paste-fill-panel">
                   <textarea
                     className="form-input paste-textarea"
-                    placeholder="粘贴微信聊天文本，例如：姓名 手机号 客诉内容 ..."
+                    placeholder={t.pasteTextPlaceholder}
                     value={pastedText}
                     onChange={(e) => setPastedText(e.target.value)}
                     rows={5}
@@ -613,19 +642,19 @@ const App: React.FC = () => {
                     onClick={handlePasteFill}
                     disabled={pasteFilling}
                   >
-                    {pasteFilling ? <><span className="spinner" /> 粘贴填充中</> : <>按粘贴文本填表</>}
+                    {pasteFilling ? <><span className="spinner" /> {t.loadingPasteFill}</> : <>{t.pasteFillButton}</>}
                   </button>
                   {pasteSummary && (
                     <div className="paste-fill-summary">
                       <div className="paste-fill-summary-line">
-                        自动填充 {pasteSummary.autoFilled}/{pasteSummary.totalMappings}，留空 {pasteSummary.skipped}
+                        {t.pasteSummaryAuto(pasteSummary.autoFilled, pasteSummary.totalMappings, pasteSummary.skipped)}
                       </div>
                       <div className="paste-fill-summary-line">
-                        平均置信度 {(pasteSummary.averageConfidence * 100).toFixed(0)}%，低置信 {pasteSummary.lowConfidenceCount} 项
+                        {t.pasteSummaryConfidence(pasteSummary.averageConfidence, pasteSummary.lowConfidenceCount)}
                       </div>
                       {pasteSummary.topSkipReasons.length > 0 && (
                         <div className="paste-fill-summary-line">
-                          主要留空原因：{pasteSummary.topSkipReasons.join('；')}
+                          {t.pasteSummaryReasons(pasteSummary.topSkipReasons)}
                         </div>
                       )}
                     </div>
@@ -636,27 +665,27 @@ const App: React.FC = () => {
               {/* 分步操作 */}
               <div className="btn-group">
                 <button className="btn btn-sm" onClick={handleScan} disabled={scanning}>
-                  {scanning ? <span className="spinner" /> : <Icon.Scan />} 扫描
+                  {scanning ? <span className="spinner" /> : <Icon.Scan />} {t.scanButton}
                 </button>
                 <button className="btn btn-sm" onClick={handleGenerate} disabled={generating || fields.length === 0}>
-                  {generating ? <span className="spinner" /> : <Icon.Edit />} 生成数据
+                  {generating ? <span className="spinner" /> : <Icon.Edit />} {t.generateButton}
                 </button>
                 <button className="btn btn-sm" onClick={handleFill} disabled={filling || Object.keys(fillData).length === 0}>
-                  {filling ? <span className="spinner" /> : <Icon.Reload />} 填充
+                  {filling ? <span className="spinner" /> : <Icon.Reload />} {t.fillButton}
                 </button>
               </div>
 
               {/* 字段列表 */}
               {fields.length > 0 && (
                 <div className="card">
-                  <div className="card-header">识别到 {fields.length} 个字段</div>
+                  <div className="card-header">{t.recognizedFields(fields.length)}</div>
                   <div className="card-body">
                     {fields.map((field) => (
                       <div key={field.id} className="field-item">
                         <div className="field-info">
                           <span className={`tag tag-${TYPE_COLORS[field.type] || 'default'}`}>{field.type}</span>
                           <span className="field-label">{field.label}</span>
-                          {field.required && <span className="tag tag-red">必填</span>}
+                          {field.required && <span className="tag tag-red">{t.requiredTag}</span>}
                         </div>
                         {fillData[field.id] !== undefined && (
                           <span className="field-value">{String(fillData[field.id])}</span>
@@ -669,7 +698,7 @@ const App: React.FC = () => {
 
               {/* 提示 */}
               {!settings.aiConfig.apiKey && (
-                <div className="hint">未配置 API Key，将使用内置规则生成数据</div>
+                <div className="hint">{t.noApiKeyHint}</div>
               )}
             </div>
           </div>
@@ -679,36 +708,51 @@ const App: React.FC = () => {
         {activeTab === 'settings' && (
           <div className="tab-content">
             <div className="form-item">
-              <label className="form-label">AI 服务商</label>
+              <label className="form-label">{t.languageLabel}</label>
+              <select
+                className="form-select"
+                value={settings.language}
+                onChange={(e) => saveSettings({ ...settings, language: e.target.value as Language })}
+              >
+                {LANGUAGE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-item">
+              <label className="form-label">{t.aiProviderLabel}</label>
               <select
                 className="form-select"
                 value={settings.aiConfig.provider}
                 onChange={(e) => updateAIConfig({ provider: e.target.value as AiProvider })}
               >
-                <option value="deepseek">DeepSeek（已内置）</option>
-                <option value="openai">OpenAI</option>
-                <option value="kimi">Kimi（月之暗面）</option>
-                <option value="zhipu">智谱 GLM</option>
-                <option value="bailian">阿里百炼（DashScope 兼容）</option>
-                <option value="minimax">MiniMax</option>
-                <option value="volcengine">火山方舟（豆包等）</option>
-                <option value="siliconflow">硅基流动</option>
-                <option value="baichuan">百川智能</option>
-                <option value="custom">自定义</option>
+                <option value="deepseek">{t.providerLabels.deepseek}</option>
+                <option value="openai">{t.providerLabels.openai}</option>
+                <option value="kimi">{t.providerLabels.kimi}</option>
+                <option value="zhipu">{t.providerLabels.zhipu}</option>
+                <option value="bailian">{t.providerLabels.bailian}</option>
+                <option value="minimax">{t.providerLabels.minimax}</option>
+                <option value="volcengine">{t.providerLabels.volcengine}</option>
+                <option value="siliconflow">{t.providerLabels.siliconflow}</option>
+                <option value="baichuan">{t.providerLabels.baichuan}</option>
+                <option value="custom">{t.providerLabels.custom}</option>
               </select>
             </div>
 
             <div className="form-item">
-              <label className="form-label">API Key</label>
+              <label className="form-label">{t.apiKeyLabel}</label>
               <PasswordInput
                 value={settings.aiConfig.apiKey}
                 onChange={(val) => updateAIConfig({ apiKey: val })}
-                placeholder="输入 API Key（留空使用内置规则）"
+                placeholder={t.apiKeyPlaceholder}
+                showTitle={t.showPassword}
+                hideTitle={t.hidePassword}
               />
             </div>
 
             <div className="form-item">
-              <label className="form-label">模型</label>
+              <label className="form-label">{t.modelLabel}</label>
               <select
                 className="form-select"
                 value={modelSelectValue}
@@ -720,30 +764,30 @@ const App: React.FC = () => {
                 {modelPresets.map((p) => (
                   <option key={p.value} value={p.value}>{p.label}</option>
                 ))}
-                <option value={CUSTOM_MODEL_VALUE}>自定义</option>
+                <option value={CUSTOM_MODEL_VALUE}>{t.customOption}</option>
               </select>
               {isCustomModel && (
                 <input
                   className="form-input custom-model-input"
                   value={settings.aiConfig.model}
                   onChange={(e) => updateAIConfig({ model: e.target.value })}
-                  placeholder="输入模型名称"
+                  placeholder={t.customModelPlaceholder}
                 />
               )}
             </div>
 
             <div className="form-item">
-              <label className="form-label">API 地址</label>
+              <label className="form-label">{t.apiBaseUrlLabel}</label>
               <input
                 className="form-input"
                 value={settings.aiConfig.baseUrl}
                 onChange={(e) => updateAIConfig({ baseUrl: e.target.value })}
-                placeholder="https://api.openai.com/v1"
+                placeholder={t.apiBaseUrlPlaceholder}
               />
             </div>
 
             <div className="form-item">
-              <label className="form-label">无 AI 时使用内置规则</label>
+              <label className="form-label">{t.useMockFallbackLabel}</label>
               <button
                 className={`toggle ${settings.useMockFallback ? 'checked' : ''}`}
                 type="button"

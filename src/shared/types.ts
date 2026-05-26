@@ -125,9 +125,13 @@ export interface AIConfig {
   baseUrl?: string;
 }
 
+/** 插件界面语言 */
+export type Language = 'en' | 'zh-CN';
+
 /** 插件全局设置 */
 export interface Settings {
   aiConfig: AIConfig;
+  language: Language;
   /** 没有 AI 时使用内置 mock 规则 */
   useMockFallback: boolean;
 }
@@ -141,5 +145,6 @@ export const DEFAULT_SETTINGS: Settings = {
     model: 'deepseek-v4-flash',
     baseUrl: 'https://api.deepseek.com',
   },
+  language: 'en',
   useMockFallback: false,
 };

@@ -1,14 +1,14 @@
 # AI Form Copilot
 
-智能表单填充浏览器插件 —— 自动识别 Ant Design 表单并生成合规测试数据，面向后台系统的开发、测试、产品同学，一键把一整页表单填上。
+智能表单填充浏览器插件 —— 自动识别 Ant Design 表单并生成合规测试数据，面向后台系统的开发、测试、产品、运营或者是需要频繁填充表单同学，一键把一整页表单填上。
 
-> 想看实现原理 / 从源码构建 / 发版流程？请跳转 [DEVELOPMENT.md](./DEVELOPMENT.md)。
+> 想看完整功能介绍？请跳转 [docs/features.md](./docs/features.md)。想看实现原理 / 从源码构建 / 发版流程？请跳转 [DEVELOPMENT.md](./DEVELOPMENT.md)。
 
 ## 安装
 
 ### 方式 1：下载已构建的 zip（推荐）
 
-1. 到仓库 [releases/ 目录](https://gitlab-hlw.shuqudata.com/bairong/ai-form-copilot/-/tree/main/releases) 下载最新的 `ai-form-copilot@<version>-<YYYYMMDD-HHmmss>.zip`。
+1. 到仓库 [releases/ 目录](./releases) 下载最新的 `ai-form-copilot@<version>-<YYYYMMDD-HHmmss>.zip`。
 2. 解压到任意本地目录（确认目录里有 `manifest.json`）。
 3. 打开 Chrome，访问 `chrome://extensions/`，开启右上角「开发者模式」。
 4. 点击「加载已解压的扩展程序」，选择第 2 步解压出来的整个文件夹。
@@ -17,7 +17,15 @@
 
 本地跑 `npm install && npm run build`，然后加载 `dist/` 目录。详细步骤见 [DEVELOPMENT.md](./DEVELOPMENT.md#从源码构建)。
 
+## 界面语言
+
+插件界面默认使用 **English**。如需中文界面，打开 Popup 后进入 **Settings → Language**，选择 **简体中文**。
+
+语言设置会保存在浏览器本地存储中，重新打开 Popup 后继续生效。更多说明见 [功能介绍 - 语言设置](./docs/features.md#语言设置)。
+
 ## 功能特性
+
+> README 只保留核心功能摘要，完整说明见 [docs/features.md](./docs/features.md)。
 
 | 功能                 | 说明                                                                                                                                                                       |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -25,7 +33,9 @@
 | **AI 智能生成**      | 内置 OpenAI / DeepSeek / Kimi 及智谱、百炼、MiniMax、火山方舟、硅基、百川等预设（需自备 API Key），支持 **自定义** Base URL；按标签、placeholder、校验规则生成中文测试数据 |
 | **内置 Mock 规则**   | 不配 AI 也可用；关键词覆盖姓名、手机、邮箱、身份证、地址、公司、日期、时间、金额、编号等；支持从 HTML `pattern` 与「只能包含…」类提示反解字符集                            |
 | **一键填充**         | 「扫描 → 生成 → 填充」可一步完成，也可分步执行                                                                                                                             |
+| **粘贴文本直填**     | 将来源文本映射到页面字段，并直接填充匹配到的表单项                                                                                                                         |
 | **多轮纠偏**         | 读取红字校验（如 `.ant-form-item-explain-error`、`role="alert"`）回灌下一轮，直至通过                                                                                      |
+| **界面语言切换**     | 设置页支持 English / 简体中文，默认语言为 English                                                                                                                          |
 | **Pro / React 适配** | 兼容 `@ant-design/pro-components`；绕过受控组件对 `input.value` 的劫持，正确触发 `onChange`                                                                                |
 | **antd 4 / 5+ / 6+** | 覆盖多版本 DOM 差异（如 `.ant-select-selection` / `.ant-select-selector`、下拉项 class 等）                                                                                |
 
@@ -33,7 +43,7 @@
 
 1. 打开包含 Ant Design 表单的页面。
 2. 点击浏览器工具栏中的 AI Form Copilot 图标，弹出 Popup。
-3. 点「一键智能填充」一步到位；或分步操作：
+3. 点 **Smart Fill / 一键智能填充** 一步到位；或分步操作：
    - **扫描**：列出页面上识别到的所有字段（含标签、类型、必填、当前值、校验错误）。
    - **生成数据**：按当前配置（Mock / AI）生成一份数据，在 Popup 预览。
    - **填充**：把生成值写回表单，并返回「本轮成功填充字段数」。
@@ -41,7 +51,7 @@
 
 ## 配置 AI
 
-插件**默认使用 DeepSeek V4 Flash**，开箱即用无需配置。如需使用自己的 DeepSeek Key 或切换其他服务商，切到 Popup 右上角的「设置」选项卡即可：
+插件**默认使用 DeepSeek V4 Flash**，开箱即用无需配置。如需使用自己的 DeepSeek Key 或切换其他服务商，切到 Popup 的 **Settings / 设置** 选项卡即可：
 
 | 服务商                    | 说明                                                                                                                                                                                                           |
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -54,12 +64,12 @@
 | **火山方舟（豆包等）**    | 填 API Key；默认 `https://ark.cn-beijing.volces.com/api/v3`；模型下拉 `doubao-seed-1-6-250615` / `doubao-seed-1-6-thinking-250615` / `doubao-seed-1-6-flash-250915`，**以控制台实际推理接入点 / 模型名为准**。 |
 | **硅基流动**              | 填 API Key；默认 `https://api.siliconflow.cn/v1`；模型下拉 `deepseek-ai/DeepSeek-V3.2` / `Qwen/Qwen3-235B-A22B-Instruct-2507` / `Qwen/Qwen3-Coder-480B-A35B-Instruct`。                                        |
 | **百川智能**              | 填 API Key；默认 `https://api.baichuan-ai.com/v1`；模型下拉 `Baichuan4-Turbo` / `Baichuan4-Air` / `Baichuan3-Turbo`。                                                                                          |
-| **自定义**                | 任意 OpenAI 兼容 Base URL + 模型名（公司内网网关、火山 `ep-xxxx` 接入点等）；模型下拉选择「自定义」后可直接输入模型名。                                                                                        |
+| **自定义**                | 任意 OpenAI 兼容 Base URL + 模型名（私有网关、火山 `ep-xxxx` 接入点等）；模型下拉选择「自定义」后可直接输入模型名。                                                                                            |
 
 - 各平台 **套餐与模型命名** 会随官方调整，下拉仅为常用默认；更全对比可参考 [AI Coding Plan 对比（国内主流 AI 平台）](https://z4crk6mg95.coze.site/)。
 - **火山方舟**若使用控制台给出的 **接入点 ID**（`ep-xxxx`）作为模型名，或 Base 与默认北京区不一致，请用 **自定义** 填写完整 **API 地址** 与 **模型**。
 
-> 未配置 AI 时，插件会使用内置的 Mock 规则生成数据，对常见字段（姓名、手机、邮箱、身份证、地址、日期、金额、编号等）已有良好支持。AI 主要在「业务专属字段」（如「营销计划名称」「隔离设置」「渠道代码」等需要理解语义才能填对的字段）上显著提升数据质量。
+> 未配置 AI 时，插件会使用内置的 Mock 规则生成数据，对常见字段（姓名、手机、邮箱、身份证、地址、日期、金额、编号等）已有良好支持。AI 主要在语义更复杂的字段（如「活动名称」「规则配置」「来源代码」等需要理解上下文才能填对的字段）上显著提升数据质量。
 
 实现细节（`AiProvider`、`response_format` 对 MiniMax 的特例等）见 [DEVELOPMENT.md — AI 服务商与实现](./DEVELOPMENT.md#ai-服务商与实现)。
 
@@ -115,7 +125,7 @@
 ```markdown
 失败案例 N
 
-1. 页面：<系统/菜单路径，如 营销中台-短链管理-新增>
+1. 页面：<系统/菜单路径，如 示例系统-列表管理-新增>
 2. 失败字段（label）：<表单项标签文案>
 3. 字段类型（你看到的）：<scanner 识别的类型：input / textarea / select / radio / date / number …>
 4. 期望结果：<应如何填或应满足什么规则>
