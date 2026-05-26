@@ -1,8 +1,10 @@
 # AI Form Copilot 功能介绍
 
+English version: [features.en.md](./features.en.md)
+
 AI Form Copilot 是一个 Chrome Extension MV3 插件，用于自动识别 Ant Design 表单并生成测试数据，适合开发、测试、产品同学在后台页面中快速填充表单。
 
-> 安装和构建方式见 [README.md](../README.md)，实现细节见 [DEVELOPMENT.md](../DEVELOPMENT.md)。
+> 安装和构建方式见 [README.zh-CN.md](../README.zh-CN.md)，实现细节见 [DEVELOPMENT.md](../DEVELOPMENT.md)。
 
 ## 功能总览
 
@@ -53,7 +55,7 @@ Mock 规则适合常见字段，例如姓名、手机、邮箱、地址、日期
 | 日期时间 | DatePicker、RangePicker、TimePicker |
 | 开关 | Switch |
 
-更完整的组件支持矩阵见 [README.md - 支持的 Ant Design 组件](../README.md#支持的-ant-design-组件)。
+更完整的组件支持矩阵见 [README.zh-CN.md - 支持的 Ant Design 组件](../README.zh-CN.md#支持的-ant-design-组件)。
 
 ## 语言设置
 

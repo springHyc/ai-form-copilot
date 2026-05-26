@@ -1,5 +1,7 @@
 # 粘贴文本直填 E2E 手工验证清单
 
+English version: [paste-fill-e2e-checklist.en.md](./paste-fill-e2e-checklist.en.md)
+
 ## 前置条件
 
 - 打开目标工单页面并保证扩展已加载最新 `dist/` 版本。

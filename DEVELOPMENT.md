@@ -1,6 +1,8 @@
 # AI Form Copilot — 开发者文档
 
-面向贡献者 / 维护者 / 二次开发者。终端用户使用说明见 [README.md](./README.md)。
+English version: [DEVELOPMENT.en.md](./DEVELOPMENT.en.md)
+
+面向贡献者 / 维护者 / 二次开发者。终端用户使用说明见 [README.zh-CN.md](./README.zh-CN.md)。
 
 ## 技术栈
 

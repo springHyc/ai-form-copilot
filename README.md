@@ -1,144 +1,146 @@
 # AI Form Copilot
 
-智能表单填充浏览器插件 —— 自动识别 Ant Design 表单并生成合规测试数据，面向后台系统的开发、测试、产品、运营或者是需要频繁填充表单同学，一键把一整页表单填上。
+Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
-> 想看完整功能介绍？请跳转 [docs/features.md](./docs/features.md)。想看实现原理 / 从源码构建 / 发版流程？请跳转 [DEVELOPMENT.md](./DEVELOPMENT.md)。
+An intelligent browser extension for form filling. It automatically detects Ant Design forms and generates valid test data, helping developers, testers, product managers, operations users, and anyone who frequently fills forms in admin pages complete a whole form page with one click.
 
-## 安装
+> For the full feature guide, see [docs/features.en.md](./docs/features.en.md). For implementation details, building from source, and release flow, see [DEVELOPMENT.en.md](./DEVELOPMENT.en.md).
 
-### 方式 1：下载已构建的 zip（推荐）
+## Installation
 
-1. 到仓库 [releases/ 目录](./releases) 下载最新的 `ai-form-copilot@<version>-<YYYYMMDD-HHmmss>.zip`。
-2. 解压到任意本地目录（确认目录里有 `manifest.json`）。
-3. 打开 Chrome，访问 `chrome://extensions/`，开启右上角「开发者模式」。
-4. 点击「加载已解压的扩展程序」，选择第 2 步解压出来的整个文件夹。
+### Option 1: Download a prebuilt zip (recommended)
 
-### 方式 2：从源码构建
+1. Download the latest `ai-form-copilot@<version>-<YYYYMMDD-HHmmss>.zip` from the repository [releases/ directory](./releases).
+2. Extract it to any local directory. Make sure the directory contains `manifest.json`.
+3. Open Chrome, go to `chrome://extensions/`, and enable "Developer mode" in the top-right corner.
+4. Click "Load unpacked" and select the extracted folder from step 2.
 
-本地跑 `npm install && npm run build`，然后加载 `dist/` 目录。详细步骤见 [DEVELOPMENT.md](./DEVELOPMENT.md#从源码构建)。
+### Option 2: Build from source
 
-## 界面语言
+Run `npm install && npm run build`, then load the `dist/` directory in Chrome. For details, see [DEVELOPMENT.en.md](./DEVELOPMENT.en.md).
 
-插件界面默认使用 **English**。如需中文界面，打开 Popup 后进入 **Settings → Language**，选择 **简体中文**。
+## UI Language
 
-语言设置会保存在浏览器本地存储中，重新打开 Popup 后继续生效。更多说明见 [功能介绍 - 语言设置](./docs/features.md#语言设置)。
+The plugin UI uses **English** by default. To switch to Chinese, open the Popup and go to **Settings -> Language**, then select **Simplified Chinese**.
 
-## 功能特性
+The language setting is saved in browser local storage and remains active when the Popup is reopened. For more details, see [Features - Language Settings](./docs/features.en.md#language-settings).
 
-> README 只保留核心功能摘要，完整说明见 [docs/features.md](./docs/features.md)。
+## Features
 
-| 功能                 | 说明                                                                                                                                                                       |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **表单自动扫描**     | 识别 Ant Design 常见控件 **14 类**：Input、Textarea、Select、Radio、Checkbox、DatePicker、RangePicker、TimePicker、InputNumber、Cascader、TreeSelect、Switch、Transfer 等  |
-| **AI 智能生成**      | 内置 OpenAI / DeepSeek / Kimi 及智谱、百炼、MiniMax、火山方舟、硅基、百川等预设（需自备 API Key），支持 **自定义** Base URL；按标签、placeholder、校验规则生成中文测试数据 |
-| **内置 Mock 规则**   | 不配 AI 也可用；关键词覆盖姓名、手机、邮箱、身份证、地址、公司、日期、时间、金额、编号等；支持从 HTML `pattern` 与「只能包含…」类提示反解字符集                            |
-| **一键填充**         | 「扫描 → 生成 → 填充」可一步完成，也可分步执行                                                                                                                             |
-| **粘贴文本直填**     | 将来源文本映射到页面字段，并直接填充匹配到的表单项                                                                                                                         |
-| **多轮纠偏**         | 读取红字校验（如 `.ant-form-item-explain-error`、`role="alert"`）回灌下一轮，直至通过                                                                                      |
-| **界面语言切换**     | 设置页支持 English / 简体中文，默认语言为 English                                                                                                                          |
-| **Pro / React 适配** | 兼容 `@ant-design/pro-components`；绕过受控组件对 `input.value` 的劫持，正确触发 `onChange`                                                                                |
-| **antd 4 / 5+ / 6+** | 覆盖多版本 DOM 差异（如 `.ant-select-selection` / `.ant-select-selector`、下拉项 class 等）                                                                                |
+> This README keeps only the core feature summary. For the full guide, see [docs/features.en.md](./docs/features.en.md).
 
-## 使用方法
+| Feature | Description |
+| --- | --- |
+| **Automatic form scanning** | Detects **14 types** of common Ant Design controls: Input, Textarea, Select, Radio, Checkbox, DatePicker, RangePicker, TimePicker, InputNumber, Cascader, TreeSelect, Switch, Transfer, and more. |
+| **AI data generation** | Includes presets for OpenAI, DeepSeek, Kimi, Zhipu, Bailian, MiniMax, Volcengine Ark, SiliconFlow, Baichuan, and custom Base URLs. It generates Chinese test data from labels, placeholders, and validation rules. |
+| **Built-in mock rules** | Works without AI. Keyword rules cover names, phone numbers, emails, ID numbers, addresses, companies, dates, times, amounts, codes, and more. It also derives character sets from HTML `pattern` and "only contains..." hints. |
+| **Smart Fill** | Runs "scan -> generate -> fill" in one step, or lets you run each step manually. |
+| **Fill from pasted text** | Maps source text to page fields and fills matched form items directly. |
+| **Multi-pass correction** | Reads visible validation errors such as `.ant-form-item-explain-error` and `role="alert"`, then feeds them into the next generation pass until the form passes validation. |
+| **UI language switching** | The settings page supports English / Simplified Chinese. English is the default language. |
+| **Pro / React compatibility** | Supports `@ant-design/pro-components`; bypasses React-controlled `input.value` interception and correctly triggers `onChange`. |
+| **antd 4 / 5+ / 6+ compatibility** | Covers DOM differences across versions, such as `.ant-select-selection` / `.ant-select-selector` and dropdown item classes. |
 
-1. 打开包含 Ant Design 表单的页面。
-2. 点击浏览器工具栏中的 AI Form Copilot 图标，弹出 Popup。
-3. 点 **Smart Fill / 一键智能填充** 一步到位；或分步操作：
-   - **扫描**：列出页面上识别到的所有字段（含标签、类型、必填、当前值、校验错误）。
-   - **生成数据**：按当前配置（Mock / AI）生成一份数据，在 Popup 预览。
-   - **填充**：把生成值写回表单，并返回「本轮成功填充字段数」。
-4. 若提交后页面出现红色校验错误，再点一次「一键智能填充」，插件会自动把错误文案回灌到下一轮生成，直到通过。
+## Usage
 
-## 配置 AI
+1. Open a page that contains an Ant Design form.
+2. Click the AI Form Copilot icon in the browser toolbar to open the Popup.
+3. Click **Smart Fill** to complete the flow in one step, or run the steps manually:
+   - **Scan**: lists all detected fields on the page, including label, type, required status, current value, and validation error.
+   - **Generate data**: generates data using the current configuration (Mock / AI) and previews it in the Popup.
+   - **Fill**: writes the generated values back to the form and returns the number of fields filled in this round.
+4. If the page shows red validation errors after submission, click **Smart Fill** again. The plugin will feed the validation messages into the next generation pass until the form passes.
 
-插件**默认使用 DeepSeek V4 Flash**，开箱即用无需配置。如需使用自己的 DeepSeek Key 或切换其他服务商，切到 Popup 的 **Settings / 设置** 选项卡即可：
+## Configure AI
 
-| 服务商                    | 说明                                                                                                                                                                                                           |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **DeepSeek（已内置）**    | 默认选中，无需 Key 即可使用；也可以填自己的 API Key；默认 `https://api.deepseek.com`；模型下拉 `deepseek-v4-flash` / `deepseek-v4-pro`。                                                                       |
-| **OpenAI**                | 填 API Key；默认 `https://api.openai.com/v1`；模型下拉含 `gpt-5.5` / `gpt-5.4` / `gpt-5.4-mini`。                                                                                                              |
-| **Kimi（月之暗面）**      | 填 API Key；`kimi-k2.6` / `kimi-k2.5` 走 **Anthropic 兼容 `/anthropic`**，其余走 **OpenAI 兼容 `/v1`**（见 `src/shared/moonshot-kimi.ts`）；模型列表见 [Kimi 模型列表](https://platform.kimi.ai/docs/models)。 |
-| **智谱 GLM**              | 填 API Key；默认 `https://open.bigmodel.cn/api/paas/v4`；模型下拉 `glm-4.6` / `glm-4.5` / `glm-4-flash`。                                                                                                      |
-| **阿里百炼（DashScope）** | 填 API Key；默认 `https://dashscope.aliyuncs.com/compatible-mode/v1`；模型下拉 `qwen3-max` / `qwen3.5-plus` / `qwen3-coder-plus`。                                                                             |
-| **MiniMax**               | 填 API Key；默认 `https://api.minimaxi.com/v1`；模型下拉 `MiniMax-M2.7` / `MiniMax-M2.7-highspeed` / `MiniMax-M2.5`。                                                                                          |
-| **火山方舟（豆包等）**    | 填 API Key；默认 `https://ark.cn-beijing.volces.com/api/v3`；模型下拉 `doubao-seed-1-6-250615` / `doubao-seed-1-6-thinking-250615` / `doubao-seed-1-6-flash-250915`，**以控制台实际推理接入点 / 模型名为准**。 |
-| **硅基流动**              | 填 API Key；默认 `https://api.siliconflow.cn/v1`；模型下拉 `deepseek-ai/DeepSeek-V3.2` / `Qwen/Qwen3-235B-A22B-Instruct-2507` / `Qwen/Qwen3-Coder-480B-A35B-Instruct`。                                        |
-| **百川智能**              | 填 API Key；默认 `https://api.baichuan-ai.com/v1`；模型下拉 `Baichuan4-Turbo` / `Baichuan4-Air` / `Baichuan3-Turbo`。                                                                                          |
-| **自定义**                | 任意 OpenAI 兼容 Base URL + 模型名（私有网关、火山 `ep-xxxx` 接入点等）；模型下拉选择「自定义」后可直接输入模型名。                                                                                            |
+The plugin **uses DeepSeek V4 Flash by default** and works out of the box. To use your own DeepSeek key or switch to another provider, open the **Settings** tab in the Popup.
 
-- 各平台 **套餐与模型命名** 会随官方调整，下拉仅为常用默认；更全对比可参考 [AI Coding Plan 对比（国内主流 AI 平台）](https://z4crk6mg95.coze.site/)。
-- **火山方舟**若使用控制台给出的 **接入点 ID**（`ep-xxxx`）作为模型名，或 Base 与默认北京区不一致，请用 **自定义** 填写完整 **API 地址** 与 **模型**。
+| Provider | Description |
+| --- | --- |
+| **DeepSeek (built in)** | Selected by default and usable without a key. You can also enter your own API key. Default base URL: `https://api.deepseek.com`; model options: `deepseek-v4-flash` / `deepseek-v4-pro`. |
+| **OpenAI** | Enter an API key. Default base URL: `https://api.openai.com/v1`; model options include `gpt-5.5` / `gpt-5.4` / `gpt-5.4-mini`. |
+| **Kimi (Moonshot)** | Enter an API key. `kimi-k2.6` / `kimi-k2.5` use the **Anthropic-compatible `/anthropic`** endpoint; other models use the **OpenAI-compatible `/v1`** endpoint. See `src/shared/moonshot-kimi.ts`; model list: [Kimi model list](https://platform.kimi.ai/docs/models). |
+| **Zhipu GLM** | Enter an API key. Default base URL: `https://open.bigmodel.cn/api/paas/v4`; model options: `glm-4.6` / `glm-4.5` / `glm-4-flash`. |
+| **Alibaba Bailian (DashScope)** | Enter an API key. Default base URL: `https://dashscope.aliyuncs.com/compatible-mode/v1`; model options: `qwen3-max` / `qwen3.5-plus` / `qwen3-coder-plus`. |
+| **MiniMax** | Enter an API key. Default base URL: `https://api.minimaxi.com/v1`; model options: `MiniMax-M2.7` / `MiniMax-M2.7-highspeed` / `MiniMax-M2.5`. |
+| **Volcengine Ark (Doubao, etc.)** | Enter an API key. Default base URL: `https://ark.cn-beijing.volces.com/api/v3`; model options: `doubao-seed-1-6-250615` / `doubao-seed-1-6-thinking-250615` / `doubao-seed-1-6-flash-250915`. Use the actual inference endpoint / model name from the console. |
+| **SiliconFlow** | Enter an API key. Default base URL: `https://api.siliconflow.cn/v1`; model options: `deepseek-ai/DeepSeek-V3.2` / `Qwen/Qwen3-235B-A22B-Instruct-2507` / `Qwen/Qwen3-Coder-480B-A35B-Instruct`. |
+| **Baichuan AI** | Enter an API key. Default base URL: `https://api.baichuan-ai.com/v1`; model options: `Baichuan4-Turbo` / `Baichuan4-Air` / `Baichuan3-Turbo`. |
+| **Custom** | Any OpenAI-compatible Base URL plus model name, such as a private gateway or a Volcengine `ep-xxxx` endpoint. Select "Custom" in the model dropdown to enter a model name directly. |
 
-> 未配置 AI 时，插件会使用内置的 Mock 规则生成数据，对常见字段（姓名、手机、邮箱、身份证、地址、日期、金额、编号等）已有良好支持。AI 主要在语义更复杂的字段（如「活动名称」「规则配置」「来源代码」等需要理解上下文才能填对的字段）上显著提升数据质量。
+- Platform plans and model names may change. The dropdown only keeps common defaults. For broader comparisons, see [AI Coding Plan comparison for major Chinese AI platforms](https://z4crk6mg95.coze.site/).
+- For **Volcengine Ark**, if you use an **endpoint ID** (`ep-xxxx`) from the console as the model name, or if your Base URL differs from the default Beijing region, use **Custom** and enter the full **API base URL** and **model**.
 
-实现细节（`AiProvider`、`response_format` 对 MiniMax 的特例等）见 [DEVELOPMENT.md — AI 服务商与实现](./DEVELOPMENT.md#ai-服务商与实现)。
+> Without an AI API key, the plugin uses built-in mock rules to generate data. It already handles common fields well, such as names, phone numbers, emails, ID numbers, addresses, dates, amounts, and codes. AI is most useful for semantically complex fields such as "campaign name", "rule configuration", or "source code", where context is needed.
 
-## 支持的 Ant Design 组件
+Implementation details such as `AiProvider` and the MiniMax `response_format` exception are in [DEVELOPMENT.en.md](./DEVELOPMENT.en.md).
 
-> 同时覆盖 antd 原生组件和 `@ant-design/pro-components`（ProFormText / ProFormSelect / ProFormDateRangePicker…）。
+## Supported Ant Design Components
 
-### 已支持（14 类）
+> Supports both native antd components and `@ant-design/pro-components` such as ProFormText, ProFormSelect, and ProFormDateRangePicker.
 
-| 组件                     | 类型       | 扫描识别 | 自动填充 | 填充策略                                                                      |
-| ------------------------ | ---------- | -------- | -------- | ----------------------------------------------------------------------------- |
-| Input 输入框             | input      | ✅       | ✅       | 通过原生 `valueSetter` 设值 + 派发 `input`/`change` 事件，绕过 React 受控组件 |
-| Input.TextArea 文本域    | textarea   | ✅       | ✅       | 同 Input                                                                      |
-| Input.Password 密码框    | input      | ✅       | ✅       | 通过 `.ant-input-affix-wrapper` 识别，填充策略同 Input                        |
-| InputNumber 数字输入框   | number     | ✅       | ✅       | 操作 `.ant-input-number-input` 内部 input                                     |
-| Select 选择器            | select     | ✅       | ✅       | 模拟点击展开下拉框 → 从可用选项中随机选择一个 → 点击选中                      |
-| Radio 单选框             | radio      | ✅       | ✅       | 在 `.ant-radio-group` 中找到目标选项 → 点击对应 `input[type=radio]`           |
-| Checkbox 多选框          | checkbox   | ✅       | ✅       | 支持单个 Checkbox 和 Checkbox.Group，点击对应 `input[type=checkbox]`          |
-| DatePicker 日期选择框    | date       | ✅       | ✅       | 点击打开面板 → 输入日期文本 → 在面板中点击对应日期单元格确认                  |
-| DateRangePicker 日期范围 | daterange  | ✅       | ✅       | 识别 `.ant-picker-range`、从 `input.size` 反推 `format` 是否带时分秒          |
-| TimePicker 时间选择框    | time       | ✅       | ✅       | 共用 `.ant-picker`，点选时间列 + OK 按钮                                      |
-| Cascader 级联选择        | cascader   | ✅       | ✅       | 模拟点击展开级联面板 → 逐级随机选择菜单项 → 自动选到叶子节点完成              |
-| TreeSelect 树选择        | treeselect | ✅       | ✅       | 模拟点击展开下拉 → 随机展开折叠节点 → 随机选择一个树节点                      |
-| Switch 开关              | switch     | ✅       | ✅       | 检测当前开关状态 → 根据生成值（随机 true/false）决定是否点击切换              |
-| Transfer 穿梭框          | transfer   | ✅       | ✅       | 从左侧列表随机勾选 1~3 项 → 点击右移按钮完成穿梭                              |
+### Supported (14 Types)
 
-### 暂不支持（4 类）
+| Component | Type | Scan | Fill | Fill Strategy |
+| --- | --- | --- | --- | --- |
+| Input | input | Yes | Yes | Uses the native `valueSetter` plus `input` / `change` events to bypass React-controlled components. |
+| Input.TextArea | textarea | Yes | Yes | Same as Input. |
+| Input.Password | input | Yes | Yes | Detected via `.ant-input-affix-wrapper`; fill strategy is the same as Input. |
+| InputNumber | number | Yes | Yes | Operates on the internal `.ant-input-number-input`. |
+| Select | select | Yes | Yes | Simulates opening the dropdown, randomly selecting an available option, and clicking it. |
+| Radio | radio | Yes | Yes | Finds the target option in `.ant-radio-group` and clicks the corresponding `input[type=radio]`. |
+| Checkbox | checkbox | Yes | Yes | Supports single Checkbox and Checkbox.Group by clicking the corresponding `input[type=checkbox]`. |
+| DatePicker | date | Yes | Yes | Opens the panel, enters date text, and clicks the matching date cell in the panel. |
+| DateRangePicker | daterange | Yes | Yes | Detects `.ant-picker-range` and infers whether `format` includes time from `input.size`. |
+| TimePicker | time | Yes | Yes | Reuses `.ant-picker`, selects time columns, and confirms with the OK button. |
+| Cascader | cascader | Yes | Yes | Simulates opening the cascader panel, randomly selecting menu items level by level until a leaf is selected. |
+| TreeSelect | treeselect | Yes | Yes | Simulates opening the dropdown, randomly expanding nodes, and selecting a tree node. |
+| Switch | switch | Yes | Yes | Reads current switch state and clicks only when needed based on the generated value. |
+| Transfer | transfer | Yes | Yes | Randomly checks 1 to 3 items from the left list and clicks the move-right button. |
 
-| 组件                  | 原因                                                           | 适配难度 | 计划   |
-| --------------------- | -------------------------------------------------------------- | -------- | ------ |
-| AutoComplete 自动完成 | DOM 结构与 Select 类似但有异步搜索，需要模拟输入触发搜索后选择 | 中       | 待支持 |
-| Slider 滑动输入条     | 需要模拟拖拽或点击轨道设置值                                   | 中       | 待评估 |
-| Rate 评分             | 需要点击对应星星图标                                           | 低       | 待支持 |
-| Mentions 提及         | 类似 Input 但有 @ 触发的弹出面板                               | 中       | 待评估 |
+### Not Yet Supported (4 Types)
 
-### 不适用（2 类）
+| Component | Reason | Difficulty | Plan |
+| --- | --- | --- | --- |
+| AutoComplete | DOM is similar to Select but requires typing to trigger async search before selecting. | Medium | To be supported |
+| Slider | Requires simulating drag or track click to set a value. | Medium | To be evaluated |
+| Rate | Requires clicking the corresponding star icon. | Low | To be supported |
+| Mentions | Similar to Input but includes an `@` triggered popup panel. | Medium | To be evaluated |
 
-| 组件                   | 说明                                         |
-| ---------------------- | -------------------------------------------- |
-| Upload 上传            | 文件上传需要真实文件，不属于文本数据填充范畴 |
-| ColorPicker 颜色选择器 | Ant Design 5 新增组件，antd 4 中不存在       |
+### Not Applicable (2 Types)
 
-### 第三方组件
+| Component | Description |
+| --- | --- |
+| Upload | File upload requires real files and is outside text data filling. |
+| ColorPicker | New in Ant Design 5 and not available in antd 4. |
 
-| 组件               | 扫描识别         | 自动填充 | 说明                                   |
-| ------------------ | ---------------- | -------- | -------------------------------------- |
-| React Quill 富文本 | ✅ 识别为 custom | ❌       | 富文本编辑器交互复杂，暂不支持自动填充 |
+### Third-party Components
 
-## 反馈问题
+| Component | Scan | Fill | Description |
+| --- | --- | --- | --- |
+| React Quill rich text editor | Detected as custom | No | Rich text editor interactions are complex and not supported for automatic filling yet. |
 
-遇到「扫不到 / 填不上 / Mock 或 AI 数据过不了校验」的字段，可以按一下模板直接反馈给我。
+## Report Issues
+
+If a field cannot be scanned, cannot be filled, or generated Mock / AI data fails validation, you can report it using this template.
 
 ```markdown
-失败案例 N
+Failure Case N
 
-1. 页面：<系统/菜单路径，如 示例系统-列表管理-新增>
-2. 失败字段（label）：<表单项标签文案>
-3. 字段类型（你看到的）：<scanner 识别的类型：input / textarea / select / radio / date / number …>
-4. 期望结果：<应如何填或应满足什么规则>
-5. 实际结果：<当前插件行为>
-6. 关键 DOM：贴出问题字段所在整段 `.ant-form-item` HTML；若有红字，一并贴 `.ant-form-item-explain` / `#xxx_help` / `role="alert"` 结构
-7. 业务代码（可选）：`<仓库>/path/to/File.tsx:起始行-结束行`（含 ProForm 字段名、rules、fieldProps）
-8. 环境（可选）：antd 主版本（4/5）、Chrome 版本、是否一键填充 / 仅填充
+1. Page: <system/menu path, for example: Example System - List Management - Create>
+2. Failed field (label): <form item label text>
+3. Field type (as observed): <scanner type: input / textarea / select / radio / date / number ...>
+4. Expected result: <how it should be filled or what rule it should satisfy>
+5. Actual result: <current plugin behavior>
+6. Key DOM: paste the complete `.ant-form-item` HTML for the field. If there is red validation text, also include `.ant-form-item-explain` / `#xxx_help` / `role="alert"` structure.
+7. Business code (optional): `<repo>/path/to/File.tsx:start-end` including ProForm field name, rules, and fieldProps.
+8. Environment (optional): antd major version (4/5), Chrome version, Smart Fill or fill-only.
 ```
 
-## 写在最后
+## Final Notes
 
-如果你也觉得不错，欢迎点个 ⭐ Star 支持！如果你有兴趣参与开发或提建议，也欢迎随时联系我（邮箱：`zhulinger520@163.com`）。谢谢！🙏
+If you find this project useful, a Star is welcome. If you are interested in contributing or sharing suggestions, feel free to contact me at `zhulinger520@163.com`. Thank you.
 
-如果你愿意，也欢迎通过微信打赏支持。
+If you would like to support the project, WeChat donation is also welcome.
 
-![微信打赏](./public/wechat-donate.png)
+![WeChat donation](./public/wechat-donate.png)
